@@ -1,7 +1,8 @@
-import { AppBar, AppBarTypeMap, Box, Grid, Paper, SvgIcon, SvgIconProps, Typography } from "@mui/material";
+import { AppBar, AppBarTypeMap, Box, Grid, Paper, SvgIcon, SvgIconProps, ThemeProvider, Typography } from "@mui/material";
 import SettingsIcon from '@mui/icons-material/Settings';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import React from "react";
+import { IconTheme } from "./Themes";
 
 function SpotIcon(props: SvgIconProps) {
     return (
@@ -22,12 +23,12 @@ function SpotIcon(props: SvgIconProps) {
 export function Navbar() {
 
     return (
-        <Paper
+        <AppBar
             sx={{ 
                 backgroundColor: '#00000010',
-                width: "100%",
                 padding: "none"
-            }} 
+            }}
+            position="static" 
             elevation={1}
         >
             <Grid 
@@ -65,12 +66,14 @@ export function Navbar() {
                             justifyContent={"center"}
                             gap={"1rem"}
                         >
-                            <SettingsIcon sx={{ color: "#00000098" }}/>
-                            <AccountCircleIcon sx={{ color: "#00000098" }}/>
+                            <ThemeProvider theme={IconTheme}>
+                                <SettingsIcon />
+                                <AccountCircleIcon />
+                            </ThemeProvider>
                         </Box>
                     </Box>
                 </Grid>
             </Grid>
-        </Paper>
+        </AppBar>
     );
 }
