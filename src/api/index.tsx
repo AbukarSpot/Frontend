@@ -1,15 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import React from "react"
 type Order = { id: string; customerName: string };
-const BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
+const PROD_BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
 
-async function callApi<T = any>(route: string, method: 'get' | 'post' | 'put' | 'delete' | 'patch' = 'get') {
-    const result = await fetch(`${BASE_URL}${route}`, {
-        method,
+export async function callApi<T = any>(
+    route: string, 
+    method: 'get' | 'post' | 'put' | 'delete' | 'patch' = 'get',
+    env: 'dev' | 'prod' = 'prod'
+) {
+    let base_url = ( env === 'dev')? 
+                    "http://localhost:5150/":
+                    PROD_BASE_URL;
+
+    const result = await fetch(`${base_url}${route}`, {
+        method: method,
+        mode: "cors",
         headers: new Headers({
             'content-type': "application/json"
         })
     })
+
     const parsed = await result.json();
     return parsed as T;
 };

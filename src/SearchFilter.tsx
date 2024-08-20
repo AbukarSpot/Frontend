@@ -1,6 +1,7 @@
 import { 
     Box, 
     Button, 
+    Divider, 
     FormControl, 
     Grid, 
     MenuItem, 
@@ -19,6 +20,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from "react";
 import { KeyboardArrowDown } from "@mui/icons-material";
 import { Order } from "./api/OrderHandler";
+import { CustomAutocomplete } from "./CustomAutocomplete";
+import { useGetUsers, User } from "./api/UserHandler";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { callApi } from "./api";
 
 
 function CustomerSearch({ GetValue = () => {} }) {
@@ -73,6 +78,23 @@ function CreateOrderModal({ setClosed = (): void => {}, isOpen = false }) {
         transform: 'translate(-50%, -50%)',
         padding: "2rem"
     }
+    
+    const FIVE_MINUTES = 1000 * 60 * 5;
+    const queryClient = useQueryClient();
+    
+    const userData = useQuery({
+        queryKey: ["my-users"],
+        queryFn: () => callApi<User[]>("User"),
+        refetchOnWindowFocus: true,
+        staleTime: FIVE_MINUTES,
+    });
+
+    const customerData = useQuery({
+        queryKey: ["my-customers"],
+        queryFn: () => callApi<User[]>("Customer"),
+        refetchOnWindowFocus: true,
+        staleTime: FIVE_MINUTES,
+    });
 
     return (
         <Modal
@@ -85,38 +107,42 @@ function CreateOrderModal({ setClosed = (): void => {}, isOpen = false }) {
                 sx={modalStyle}    
             >
                 <Grid container spacing={1}>
-                    <Grid item lg={6}>
-                        <TextField
-                            id="create-order-id"
-                            label="Order Id"
-                            variant="outlined"
-                            size="small"
-                            fullWidth
+
+                    <Grid item lg={4}>
+                        <CustomAutocomplete 
+                            label="User"
+                            isLoading={userData.isLoading}
+                            getLabel={option => option.username}
+                            requestFailed={userData.isError == true}
+                            options={userData.data}
                         />
                     </Grid>
 
-                    <Grid item lg={3}>
-                        <TextField
-                            id="create-order-created-by"
-                            label="Created By"
-                            variant="outlined"
-                            size="small"
-                        />
-                    </Grid>
-
-                    <Grid item lg={3}>
-                        <TextField
-                            id="create-customer-name"
+                    <Grid item lg={4}>
+                        <CustomAutocomplete 
                             label="Customer"
-                            variant="outlined"
-                            size="small"
+                            isLoading={customerData.isLoading}
+                            getLabel={option => option.name}
+                            requestFailed={customerData.isError == true}
+                            options={customerData.data}
                         />
                     </Grid>
 
-                    <Grid item lg={3}>
+                    <Grid item lg={6}>
                         <OrderType />
                     </Grid>
                 </Grid>
+
+                <Divider sx={{ padding: "0.5rem" }}/>
+                <Box
+                    display={"flex"}
+                    justifyContent={"end"}
+                    alignContent={"end"}
+                >
+                    <ThemeProvider theme={ButtonTheme}>
+                        <Button variant="contained">Submit</Button>
+                    </ThemeProvider>
+                </Box>
 
             </Paper>
         </Modal>
