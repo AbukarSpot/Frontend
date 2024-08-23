@@ -1,4 +1,4 @@
-import { Box, Checkbox, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Box, Checkbox, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { Order } from "./api/OrderHandler";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
@@ -23,6 +23,19 @@ interface OrderTableProps {
     changePage: React.Dispatch<React.SetStateAction<number>>,
     page: number
 } 
+
+function TableLoading({ children = <></> }) {
+  if (children === <></>) {
+    return (<>
+      {
+        [1,2,3,4,5].map(x => <TableRow><TableCell><Skeleton variant="rounded" width={"100%"} height={"100%"}/></TableCell></TableRow>)
+      }
+    </>)
+  }
+
+  return children
+}
+
 
 function SpecificTypeAndCustomerResults({ page = 0 }) {
   
@@ -169,7 +182,6 @@ function AllOrderResults({ page = 0 }) {
   </>)
 }
 
-
 export default function OrderTable() {
 
     
@@ -213,7 +225,11 @@ export default function OrderTable() {
                 </TableHead>
                 
                 <TableBody>
-                  { data }
+                  { 
+                    data === <></> ?
+                      <TableLoading>{ data }</TableLoading>:
+                      data
+                  }
                 </TableBody>
             </Table>
         </TableContainer>
