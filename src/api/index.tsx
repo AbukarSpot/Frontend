@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import axios, { AxiosResponse } from "axios";
 import React from "react"
 type Order = { id: string; customerName: string };
 const PROD_BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
@@ -6,24 +7,63 @@ const PROD_BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
 export async function callApi<T = any>(
     route: string, 
     method: 'get' | 'post' | 'put' | 'delete' | 'patch' = 'get',
-    env: 'dev' | 'prod' = 'prod'
+    env: 'dev' | 'prod' = 'prod',
+    data: any | null = null 
 ) {
     let base_url = ( env === 'dev')? 
                     "http://localhost:5150/":
                     PROD_BASE_URL;
 
-    const result = await fetch(`${base_url}${route}`, {
+    let requestData = {
         method: method,
         mode: "cors",
         headers: new Headers({
             'content-type': "application/json"
         })
-    })
+    } as RequestInit;
 
+    if (data !== null) {
+        requestData = { 
+            ...requestData, 
+            body: JSON.stringify(data)
+        }
+    }
+    
+    const result = await fetch(`${base_url}${route}`, requestData)
     const parsed = await result.json();
     return parsed as T;
 };
 
+export async function callApi2<T = any>(
+    route: string, 
+    method: 'get' | 'post' | 'put' | 'delete' | 'patch' = 'get',
+    env: 'dev' | 'prod' = 'prod',
+    data: any | null = null 
+){
+    let base_url = ( env === 'dev')? 
+                    "http://localhost:5150/":
+                    PROD_BASE_URL;
+
+    try {
+        let response = null;
+        if (method === 'get') {
+            response = await axios.get<T>(`${base_url}${route}`, {
+                ...data
+            });
+        }
+        else if (method === 'post') {
+            response = await axios.post<T>(`${base_url}${route}`, {                
+                ...data
+            });
+        }
+
+        return response as T;
+    } catch (error) {
+        return error;
+    }
+
+    
+}
 function useOrders() {
     return useQuery({
         queryKey: ["my-orders"],

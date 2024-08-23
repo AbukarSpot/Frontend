@@ -8,6 +8,12 @@ export type User = {
     username: string
 };
 
+export type Customer = {
+    customerId: string,
+    name: string
+};
+
+
 export async function useGetUsers() {
     return await useQuery({
         queryKey: ["my-users"],

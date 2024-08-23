@@ -1,13 +1,30 @@
 
 import { useQuery } from "@tanstack/react-query";
 const BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
+
+export type OrderClassification = "Standard" | "SaleOrder" | "PurchaseOrder" | "TransferOrder"| "ReturnOrder"; 
+
+// export type OrderOld = {
+//     orderId: string,
+//     customerId: string,
+//     createdBy: string,
+//     orderType: OrderClassification,
+//     customer: string
+// };
+
 export type Order = {
-    orderId: string,
-    customerId: string,
-    createdBy: string,
-    orderType: "Standard" | "SaleOrder" | "PurchaseOrder" | "TransferOrder"| "ReturnOrder",
+    id: string,
+    date: string,
+    by: string,
+    type: OrderClassification,
     customer: string
 };
+
+export type OrderRequest = {
+    Type: OrderClassification,
+    CustomerName: string,
+    Username: string,
+}
 
 export class OrderHandler {
 
@@ -22,7 +39,7 @@ export class OrderHandler {
 
     static async callApi<T = any>(route: string, method: 'get' | 'post' | 'put' | 'delete' | 'patch' = 'get') {
         const result = await fetch(`${BASE_URL}${route}`, {
-            method,
+            method: method,
             headers: new Headers({ 
                 'content-type': "application/json"
             })
