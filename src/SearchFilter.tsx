@@ -384,7 +384,7 @@ export function SearchFilter() {
                     display: {
                         xs: "none",
                         sm: "none",
-                        md: "none",
+                        md: "flex",
                         lg: "flex",
                         xl: "flex"
                     }
@@ -402,6 +402,7 @@ export function SearchFilter() {
                 sx={{
                     maxWidth: "500px",
                     display: {
+                        md: "none",
                         lg: "none",
                         xl: "none"
                     }
