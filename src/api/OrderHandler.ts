@@ -4,14 +4,6 @@ const BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
 
 export type OrderClassification = "Standard" | "SaleOrder" | "PurchaseOrder" | "TransferOrder"| "ReturnOrder"; 
 
-// export type OrderOld = {
-//     orderId: string,
-//     customerId: string,
-//     createdBy: string,
-//     orderType: OrderClassification,
-//     customer: string
-// };
-
 export type Order = {
     id: string,
     date: string,

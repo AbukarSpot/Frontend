@@ -3,9 +3,10 @@ import { Order } from "./api/OrderHandler";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AxiosResponse } from "axios";
 import { useTable } from "./api/contexts";
+import { TableState } from "./redux/tableReducer";
 
 const MAX_ATTEMPTS = 10;
 const FIVE_MINUTES = 1000 * 60 * 5;
@@ -18,31 +19,37 @@ const cellMap: {label: string, objectKey: keyof Order}[] = [
 
 ];
 export type OrderMutationFunction = UseMutationResult<Order[], Error ,number, Order[]> 
-interface OrderTableProps {
-    mutation: OrderMutationFunction,
-    changePage: React.Dispatch<React.SetStateAction<number>>,
+interface OrderTableRowProps {
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
     page: number
 } 
 
-function TableLoading({ children = <></> }) {
-  if (children === <></>) {
-    return (<>
-      {
-        [1,2,3,4,5].map(x => <TableRow><TableCell><Skeleton variant="rounded" width={"100%"} height={"100%"}/></TableCell></TableRow>)
-      }
-    </>)
-  }
+interface CustomTableCheckBoxProps {
+  orderId: string,
+  selectOrder: (orderId: string, action: "push" | "pop") => void
+} 
 
-  return children
+function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps) {
+
+  return (
+    <Checkbox onChange={event => {
+      if (event.target.checked) {
+        selectOrder(orderId, "push")
+      } else {
+        selectOrder(orderId, "pop")
+      }
+    }}/>
+  )
 }
 
 
-function SpecificTypeAndCustomerResults({ page = 0 }) {
+function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
-  const { state } = useTable();
+  const { state, selectOrder } = useTable();
   const { data } = useQuery({
-    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}`],  
+    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
     queryFn: async () => {
+          setIsLoading(true);
           const data = await callApi2<Order[]>(
               `filter/type/customer/${state.OrderTypeSelection}/${state.CustomerSelection}`, 
               "get", 
@@ -53,6 +60,7 @@ function SpecificTypeAndCustomerResults({ page = 0 }) {
                   type: state.OrderTypeSelection
               }
           );
+          setIsLoading(false);
           return data as AxiosResponse<Order[]>;
       },
       retry: MAX_ATTEMPTS,
@@ -60,12 +68,12 @@ function SpecificTypeAndCustomerResults({ page = 0 }) {
       staleTime: FIVE_MINUTES
   });
 
-  console.log("get-specific-customer-type", data, state);
+  
   return (<>
         {data?.data?.map((row, rowIndex) => {
           return <TableRow key={rowIndex}>
                     <TableCell>
-                      <Checkbox />
+                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
                     </TableCell>
                     {
                        cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
@@ -75,12 +83,13 @@ function SpecificTypeAndCustomerResults({ page = 0 }) {
   </>)
 }
 
-function SpecificTypeResults({ page = 0 }) {
+function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
-  const { state, dispatch } = useTable();
+  const { state, selectOrder } = useTable();
   const { data } = useQuery({
-    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}`],  
+    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
     queryFn: async () => {
+          setIsLoading(true);
           const data = await callApi2<Order[]>(
               `filter/type/${state.OrderTypeSelection}`, 
               "get", 
@@ -90,18 +99,26 @@ function SpecificTypeResults({ page = 0 }) {
                   type: state.OrderTypeSelection 
               }
           );
+          console.log("res after add, count: ", state.createCount, data);
+          setIsLoading(false);
           return data as AxiosResponse<Order[]>;
       },
       retry: MAX_ATTEMPTS,
       retryDelay: 1000,
-      staleTime: FIVE_MINUTES
+      staleTime: FIVE_MINUTES,
+      
   });
+
+  console.log(
+    "query key: ", `get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`,
+    "data:", data
+  );
 
   return (<>
         {data?.data?.map((row, rowIndex) => {
           return <TableRow key={rowIndex}>
                     <TableCell>
-                      <Checkbox />
+                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
                     </TableCell>
                     {
                        cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
@@ -112,12 +129,13 @@ function SpecificTypeResults({ page = 0 }) {
 }
 
 
-function CustomerSearchResults({ page = 0 }) {
+function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
-  const { state } = useTable();
+  const { state, selectOrder } = useTable();
   const { data } = useQuery({
-    queryKey: [`get-specific-customer-${state.CustomerSelection}-orders-${page}`],  
+    queryKey: [`get-specific-customer-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
     queryFn: async () => {
+          setIsLoading(true);
           const data = await callApi2<Order[]>(
               `filter/customer/${state.CustomerSelection}`, 
               "get", 
@@ -127,6 +145,7 @@ function CustomerSearchResults({ page = 0 }) {
                   customer: state.CustomerSelection 
               }
           );
+          setIsLoading(false);
           return data as AxiosResponse<Order[]>;
       },
       retry: MAX_ATTEMPTS,
@@ -138,7 +157,7 @@ function CustomerSearchResults({ page = 0 }) {
         {data?.data?.map((row, rowIndex) => {
           return <TableRow key={rowIndex}>
                     <TableCell>
-                      <Checkbox />
+                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
                     </TableCell>
                     {
                        cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
@@ -148,11 +167,13 @@ function CustomerSearchResults({ page = 0 }) {
   </>)
 }
 
-function AllOrderResults({ page = 0 }) {
+function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 
+  const { state, selectOrder } = useTable()
   const { data } = useQuery({
-    queryKey: [`get-all-orders-${page}`],  
+    queryKey: [`get-all-orders-${page}-${state.createCount}-${state.deleteCount}`, state.createCount],  
     queryFn: async () => {
+          setIsLoading(true);
           const data = await callApi2<Order[]>(
               "Orders", 
               "get", 
@@ -161,6 +182,8 @@ function AllOrderResults({ page = 0 }) {
                   pageNumber: page
               }
           );
+
+          setIsLoading(false);
           return data as AxiosResponse<Order[]>;
       },
       retry: MAX_ATTEMPTS,
@@ -172,7 +195,7 @@ function AllOrderResults({ page = 0 }) {
       {data?.data?.map((row, rowIndex) => {
         return <TableRow key={rowIndex}>
                   <TableCell>
-                    <Checkbox />
+                    <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
                   </TableCell>
                   {
                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
@@ -182,23 +205,51 @@ function AllOrderResults({ page = 0 }) {
   </>)
 }
 
+function TableLoading() {
+  
+  const ids = [1,2,3,4,5]
+  return (<>
+    {
+      ids.map(rowId => (<>
+          <TableRow key={rowId}>  
+            <TableCell>
+              <Checkbox />
+            </TableCell>
+
+            {
+              ids.map(colId => (<>
+                <TableCell key={(10 * rowId) + colId}>
+                  <Box width={"100%"} height={"100%"}>
+                    <Skeleton variant="rounded" />
+                  </Box>
+                </TableCell>
+              </>))
+            }
+          </TableRow>
+      </>))
+    }
+  </>)
+}
+
+
 export default function OrderTable() {
 
     
     const [ page, setPage ] = useState(0);
+    const [ isLoading, setIsLoading ] = useState(false);
     const { state } = useTable();
     let data = null;
 
     if (state.mode == "All-Orders") {
-      data = <AllOrderResults page={page} />
+      data = <AllOrderResults page={page} setIsLoading={setIsLoading} />
     }
 
     else if (state.mode == "Specific-Customer") {
-      data = <CustomerSearchResults page={page} />
+      data = <CustomerSearchResults page={page} setIsLoading={setIsLoading} />
     }
 
     else if (state.mode == "Specific-Type") {
-      data = <SpecificTypeResults page={page} />
+      data = <SpecificTypeResults page={page} setIsLoading={setIsLoading} />
     }
 
     const queryTypeAndCustomer: boolean = (
@@ -207,7 +258,7 @@ export default function OrderTable() {
     );
 
     if (queryTypeAndCustomer) {
-      data = <SpecificTypeAndCustomerResults page={page} />
+      data = <SpecificTypeAndCustomerResults page={page} setIsLoading={setIsLoading} />
     }
 
     return (
@@ -219,15 +270,15 @@ export default function OrderTable() {
                             <Checkbox></Checkbox>
                         </TableCell>
                         {cellMap.map((cell) => (
-                            <TableCell className="cell" key={cell.label} align='left'>{cell.label}</TableCell>
+                            <TableCell className="cell" key={cell.label} align='center'>{cell.label}</TableCell>
                         ))}
                     </TableRow>
                 </TableHead>
                 
                 <TableBody>
-                  { 
-                    data === <></> ?
-                      <TableLoading>{ data }</TableLoading>:
+                  {
+                    isLoading? 
+                      <TableLoading /> :
                       data
                   }
                 </TableBody>

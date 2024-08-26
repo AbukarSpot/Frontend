@@ -6,14 +6,18 @@ export interface TableState {
     mode: TableMode,
     OrderTypeSelection: OrderClassification | "",
     CustomerSelection: string,
-    selectedOrders: string[]
+    selectedOrders: string[],
+    createCount: number,
+    deleteCount: number
 }
 
 const initialState: TableState = {
     mode: "All-Orders",
     OrderTypeSelection: "",
     CustomerSelection: "",
-    selectedOrders: []
+    selectedOrders: [],
+    createCount: 0,
+    deleteCount: 0
 }
 
 export const tableSlice = createSlice({

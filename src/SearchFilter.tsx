@@ -1,6 +1,7 @@
 import {
     Box,
     Button,
+    CircularProgress,
     Divider,
     FormControl,
     Grid,
@@ -24,6 +25,8 @@ import { Customer, User } from "./api/UserHandler";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
 import { useTable } from "./api/contexts"
+import { TableMode } from "./redux/tableReducer";
+import { error } from "console";
 
 export function CustomerSearch({  }) {
     
@@ -61,7 +64,8 @@ export function CustomerSearch({  }) {
                     color="primary"
                     sx={{
                         borderTopLeftRadius: "0px",
-                        borderBottomLeftRadius: "0px"
+                        borderBottomLeftRadius: "0px",
+                        height: "100%"
                     }}
                     onClick={handleCustomerSubmission}
                 >
@@ -88,7 +92,6 @@ function CreateOrderModal({
     handleSubmit = (order: OrderRequest): void => { },
     isOpen = false
 }) {
-
     const modalStyle = {
         position: 'absolute' as 'absolute',
         top: '50%',
@@ -170,6 +173,7 @@ function CreateOrderModal({
 
                     <Grid item sm={12} md={6} lg={6}>
                         <OrderType
+                            mode="create"
                             getValue={value => {
                                 setFormData(prevState => ({
                                     ...prevState,
@@ -195,6 +199,7 @@ function CreateOrderModal({
                             variant="contained"
                             onClick={() => {
                                 handleSubmit(formData);
+                                setClosed();
                             }}
                         >Submit</Button>
                     </ThemeProvider>
@@ -208,6 +213,7 @@ function CreateOrderModal({
 function CreateOrder() {
 
     const [open, setOpen] = useState(false);
+    const { dispatch } = useTable();
     const handleOpen = () => setOpen(true);
     const handleClose = () => setOpen(false);
 
@@ -229,7 +235,14 @@ function CreateOrder() {
         },
     });
     const submitOrder = (orderData: OrderRequest) => {
-        mutate(orderData, {});
+        mutate(orderData, {
+            onSuccess: (data, variables, context) => {
+                dispatch(prevState => ({
+                    ...prevState,
+                    createCount: prevState.createCount + 1
+                }));
+            }
+        });
     }
 
     let addIcon = <AddIcon
@@ -240,6 +253,7 @@ function CreateOrder() {
         <Box>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
+                    fullWidth
                     startIcon={addIcon}
                     onClick={handleOpen}
                 >
@@ -255,17 +269,48 @@ function CreateOrder() {
     );
 }
 
-function DeleteSelected({ getValue = (selectedOrders: string[]): void => { } }) {
+function DeleteSelected() {
 
-    let deleteIcon = <DeleteIcon
-        sx={{ color: "#fff" }}
-        fontSize="small"
-    />
+    const { state, dispatch } = useTable();
+    const [ isLoading, setIsLoading ] = useState(false);
+    const { data, mutate } = useMutation({
+        mutationFn: async (selectedOrders: string[]) => {
+            setIsLoading(true);
+            return await callApi2<number>(
+                "Orders",
+                "delete",
+                "prod",
+                selectedOrders
+            );
+        }
+    });
+
+    const handleDelete = () => {
+        mutate(state.selectedOrders, {
+            onSettled: (data, variables, context) => {
+                dispatch(prevState => ({
+                    ...prevState,
+                    deleteCount: prevState.deleteCount + 1
+                }));
+                setIsLoading(false);
+            }
+        });
+    }
+
+    let deleteIcon = isLoading ? 
+        <CircularProgress size="1.3rem" sx={{ color: "#fff"}} />:
+        <DeleteIcon
+            sx={{ color: "#fff" }}
+            fontSize="small"
+        />;
+
     return (
         <Box>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
+                    fullWidth
                     startIcon={deleteIcon}
+                    onClick={handleDelete}
                 >
                     Delete Selected
                 </Button>
@@ -274,7 +319,15 @@ function DeleteSelected({ getValue = (selectedOrders: string[]): void => { } }) 
     );
 }
 
-function OrderType({ getValue = (selectedOrderType: OrderClassification): void => { } }) {
+interface OrderTypeProps {
+    getValue: (selectedOrderType: OrderClassification) => void,
+    mode: "filter" | "create"
+}
+
+function OrderType({ 
+    getValue = (selectedOrderType: OrderClassification): void => {},
+    mode = "filter"    
+}: OrderTypeProps) {
 
     let [ orderType, setOrderType ] = useState("_");
     const { dispatch } = useTable();
@@ -284,9 +337,10 @@ function OrderType({ getValue = (selectedOrderType: OrderClassification): void =
         getValue(event.target.value as OrderClassification);
 
         let dispatchValue = event.target.value === "_"? "" : event.target.value;
+        let modeValue = event.target.value === "_"? "All-Orders" : "Specific-Type";
         dispatch(prevState => ({
             ...prevState,
-            mode: "Specific-Type",
+            mode: modeValue as TableMode,
             OrderTypeSelection: dispatchValue as OrderClassification
         }));
     }
@@ -319,16 +373,61 @@ function OrderType({ getValue = (selectedOrderType: OrderClassification): void =
 export function SearchFilter() {
 
     return (
-        <Box
-            display={"flex"}
-            alignContent={"left"}
-            justifyContent={"left"}
-            gap={"1rem"}
-        >
-            <CustomerSearch />
-            <CreateOrder />
-            <DeleteSelected />
-            <OrderType />
-        </Box>
+        <>
+            <Box
+                display={"flex"}
+                alignContent={"left"}
+                justifyContent={"left"}
+                gap={"1rem"}
+
+                sx={{
+                    display: {
+                        xs: "none",
+                        sm: "none",
+                        md: "none",
+                        lg: "flex",
+                        xl: "flex"
+                    }
+                }}
+            >
+                <CustomerSearch />
+                <CreateOrder />
+                <DeleteSelected />
+                <Box width={"300px"}>
+                    <OrderType getValue={value => {}} mode="filter" />
+                </Box>
+            </Box>
+
+            <Box
+                sx={{
+                    maxWidth: "500px",
+                    display: {
+                        lg: "none",
+                        xl: "none"
+                    }
+                }}
+            >
+                <Grid container gap={1} columnGap={8}>
+                    
+                    <Grid item sm={12}>
+                        <CustomerSearch />
+                    </Grid>
+
+
+                    <Grid item sm={12}>
+                        <OrderType getValue={value => {}} mode="filter" />
+                    </Grid>
+
+                    <Grid item sm={5}>
+                        <CreateOrder />
+                    </Grid>
+
+                    <Grid item sm={5}>
+                        <DeleteSelected />
+                    </Grid>
+
+                </Grid>
+            </Box>
+        </>
     );
 }

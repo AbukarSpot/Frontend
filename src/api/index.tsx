@@ -56,6 +56,11 @@ export async function callApi2<T = any>(
                 ...data
             });
         }
+        else if (method === 'delete') {
+            response = await axios.delete<T>(`${base_url}${route}`, {                
+                data: data,
+            });
+        }
 
         return response as T;
     } catch (error) {
