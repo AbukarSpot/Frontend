@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import axios, { AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import React from "react"
 type Order = { id: string; customerName: string };
 const PROD_BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
@@ -62,9 +62,9 @@ export async function callApi2<T = any>(
             });
         }
 
-        return response as T;
+        return response as AxiosResponse<T>;
     } catch (error) {
-        return error;
+        throw error as AxiosError<Order[]>;
     }
 
     

@@ -1,15 +1,19 @@
 import {
+    Alert,
     Box,
     Button,
     CircularProgress,
     Divider,
     FormControl,
     Grid,
+    InputAdornment,
     MenuItem,
     Modal,
     Paper,
     Select,
     SelectChangeEvent,
+    Slide,
+    Snackbar,
     TextField,
 } from "@mui/material";
 import SearchIcon from '@mui/icons-material/Search';
@@ -24,9 +28,7 @@ import { CustomAutocomplete } from "./CustomAutocomplete";
 import { Customer, User } from "./api/UserHandler";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
-import { useTable } from "./api/contexts"
-import { TableMode } from "./redux/tableReducer";
-import { error } from "console";
+import { TableMode, useApiResponse, useTable } from "./api/contexts"
 
 export function CustomerSearch({  }) {
     
@@ -51,12 +53,16 @@ export function CustomerSearch({  }) {
                 InputProps={{
                     style: {
                         borderTopRightRadius: "0px",
-                        borderBottomRightRadius: "0px"
+                        borderBottomRightRadius: "0px",
+                        padding: "none"
                     }
                 }}
                 value={customer}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                     setCustomer(event.target.value);
+                }}
+                sx={{
+                    width: "77%"
                 }}
             />
             <ThemeProvider theme={ButtonTheme}>
@@ -65,10 +71,10 @@ export function CustomerSearch({  }) {
                     sx={{
                         borderTopLeftRadius: "0px",
                         borderBottomLeftRadius: "0px",
-                        height: "100%"
+                        height: "2.85em"
                     }}
                     onClick={handleCustomerSubmission}
-                >
+                    >
                     <Box
                         display={"flex"}
                         justifyContent={"center"}
@@ -78,9 +84,9 @@ export function CustomerSearch({  }) {
                             sx={{
                                 color: "#fff"
                             }}
-
+                            
                             fontSize="medium"
-                        />
+                            />
                     </Box>
                 </Button>
             </ThemeProvider>
@@ -250,10 +256,9 @@ function CreateOrder() {
         fontSize="small"
     />
     return (
-        <Box>
+        <>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
-                    fullWidth
                     startIcon={addIcon}
                     onClick={handleOpen}
                 >
@@ -265,7 +270,7 @@ function CreateOrder() {
                 setClosed={handleClose}
                 isOpen={open}
             />
-        </Box>
+        </>
     );
 }
 
@@ -305,17 +310,16 @@ function DeleteSelected() {
         />;
 
     return (
-        <Box>
+        <>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
-                    fullWidth
                     startIcon={deleteIcon}
                     onClick={handleDelete}
                 >
                     Delete Selected
                 </Button>
             </ThemeProvider>
-        </Box>
+        </>
     );
 }
 
@@ -346,7 +350,7 @@ function OrderType({
     }
 
     return (
-        <Box>
+        <>
             <FormControl fullWidth>
                 <ThemeProvider theme={OrderDropDownTheme}>
                     <Select
@@ -365,11 +369,36 @@ function OrderType({
                     </Select>
                 </ThemeProvider>
             </FormControl>
-        </Box>
+        </>
     );
 }
 
+function ServerToastMessage() {
 
+    const EIGHT_SECONDS = 8000;
+    const [ open, setOpen ] = useState<boolean>(true);
+    const { state } = useApiResponse();
+    let toastElement = <></>;
+    if ((state.status as number) >= 500) {
+        toastElement = <Alert severity="error">{state.message}</Alert>
+    }
+
+    return (<>
+        <Snackbar 
+            anchorOrigin={{
+                vertical: "top",
+                horizontal: "right"
+            }}
+            open={open}
+            TransitionComponent={(props) => (<Slide {...props} direction="up" />)}
+            autoHideDuration={1200}
+        >
+            <Box>
+                {toastElement}
+            </Box>
+        </Snackbar>
+    </>)
+}
 export function SearchFilter() {
 
     return (
@@ -396,11 +425,12 @@ export function SearchFilter() {
                 <Box width={"300px"}>
                     <OrderType getValue={value => {}} mode="filter" />
                 </Box>
+                <ServerToastMessage />
             </Box>
 
             <Box
+                maxWidth={"60vw"}
                 sx={{
-                    maxWidth: "500px",
                     display: {
                         md: "none",
                         lg: "none",
@@ -419,12 +449,14 @@ export function SearchFilter() {
                         <OrderType getValue={value => {}} mode="filter" />
                     </Grid>
 
-                    <Grid item sm={5}>
-                        <CreateOrder />
-                    </Grid>
+                    <Grid container columnGap={0}>
+                        <Grid item xs={12} sm={6}>
+                            <CreateOrder />
+                        </Grid>
 
-                    <Grid item sm={5}>
-                        <DeleteSelected />
+                        <Grid item xs={12} sm={6}>
+                            <DeleteSelected />
+                        </Grid>
                     </Grid>
 
                 </Grid>

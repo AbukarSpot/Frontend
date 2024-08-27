@@ -1,12 +1,12 @@
 import { Box, Checkbox, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { Order } from "./api/OrderHandler";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
-import { AxiosResponse } from "axios";
-import { useTable } from "./api/contexts";
-import { TableState } from "./redux/tableReducer";
+import { AxiosError, AxiosResponse } from "axios";
+import { useApiResponse, useTable } from "./api/contexts";
+import { useQuery } from "react-query";
 
 const MAX_ATTEMPTS = 10;
 const FIVE_MINUTES = 1000 * 60 * 5;
@@ -132,25 +132,23 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
-  const { data } = useQuery({
-    queryKey: [`get-specific-customer-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
-    queryFn: async () => {
-          setIsLoading(true);
-          const data = await callApi2<Order[]>(
-              `filter/customer/${state.CustomerSelection}`, 
-              "get", 
-              "prod", 
-              {
-                  pageNumber: page,
-                  customer: state.CustomerSelection 
-              }
-          );
-          setIsLoading(false);
-          return data as AxiosResponse<Order[]>;
-      },
+  const { dispatch } = useApiResponse();
+  const { data, isLoading } = useQuery(['',page,state.createCount,state.deleteCount,],{  
+    queryFn: async () => await callApi2<Order[]>(
+      `filter/customer/${state.CustomerSelection}`, 
+      "get", 
+      "prod", 
+      {
+          pageNumber: page,
+          customer: state.CustomerSelection 
+      }
+  ),
       retry: MAX_ATTEMPTS,
       retryDelay: 1000,
-      staleTime: FIVE_MINUTES
+      staleTime: FIVE_MINUTES,
+      onError: async (payload: AxiosError<Order[]>) => {
+      
+      },
   });
 
   return (<>

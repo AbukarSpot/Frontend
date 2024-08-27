@@ -1,6 +1,23 @@
 import { stat } from "fs";
-import { TableState } from "../redux/tableReducer";
 import { createContext, useContext, useState } from "react";
+import { OrderClassification } from "./OrderHandler";
+
+export type TableMode = "All-Orders" | "Specific-Customer" | "Specific-Type";
+export interface TableState {
+    mode: TableMode,
+    OrderTypeSelection: OrderClassification | "",
+    CustomerSelection: string,
+    selectedOrders: string[],
+    createCount: number,
+    deleteCount: number
+}
+
+
+type TableContextType = { 
+    state: TableState, 
+    dispatch: React.Dispatch<React.SetStateAction<TableState>>,
+    selectOrder: (orderId: string, action: "push" | "pop") => void
+};
 
 const initialTableState: TableState = {
     mode: "All-Orders",
@@ -10,16 +27,11 @@ const initialTableState: TableState = {
     createCount: 0,
     deleteCount: 0
 }
-
-type TableContextType = { 
-    state: TableState, 
-    dispatch: React.Dispatch<React.SetStateAction<TableState>>,
-    selectOrder: (orderId: string, action: "push" | "pop") => void
- };
 const TableContext = createContext<TableContextType>(null as any);
 
 export const TableContextProvider = (props: React.PropsWithChildren<{}>) => {
     const [state, dispatch] = useState(initialTableState)
+    const [responseState, dispatchResponseData] = useState(initialTableState)
     const selectOrder = (orderId: string, action: "push" | "pop") => {
         if (action === "push") {
             if (!state.selectedOrders.includes(orderId)) {
@@ -48,6 +60,43 @@ export function useTable() {
     const ctxValue = useContext<TableContextType>(TableContext)
     if (!ctxValue) {
         throw new Error("useTable must be called from inside a TableContextProvider")
+    }
+
+    return ctxValue;
+}
+
+
+
+// API response context
+interface ApiResponse {
+    message: string | null,
+    status: string | number | null | undefined,
+    isError: boolean
+}
+
+type ApiResponseContextType = {
+    state: ApiResponse,
+    dispatch: React.Dispatch<React.SetStateAction<ApiResponse>>,
+};
+
+const initialApiResponseState: ApiResponse = {
+    message: null,
+    status: null,
+    isError: false
+}
+
+const ApiResponseContext = createContext<ApiResponseContextType>(null as any);
+export const ApiResponseContextProvider = (props: React.PropsWithChildren<{}>) => {
+    const [state, dispatch] = useState(initialApiResponseState)
+    return <ApiResponseContext.Provider value={
+        { state, dispatch }
+    }>{props.children}</ApiResponseContext.Provider>
+}
+
+export function useApiResponse() {
+    const ctxValue = useContext<ApiResponseContextType>(ApiResponseContext)
+    if (!ctxValue) {
+        throw new Error("useApiResponse must be called from inside a ApiResponseContextProvider")
     }
 
     return ctxValue;
