@@ -1,13 +1,13 @@
-import { Box, Checkbox, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Box, Checkbox, Pagination, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { Order } from "./api/OrderHandler";
-import { useMutation } from "@tanstack/react-query";
-import { useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
-import { AxiosError, AxiosResponse } from "axios";
-import { useTable } from "./api/contexts";
-import { TableState } from "./redux/tableReducer";
+import axios, { AxiosError, AxiosResponse } from "axios";
+import { useApiResponse, useTable } from "./api/contexts";
+import { useQuery  as useQuery2 } from "react-query";
+import { All, Customer, CustomerAndType, PaginationCriteria, Type } from "./pagination";
 
 const MAX_ATTEMPTS = 10;
 const FIVE_MINUTES = 1000 * 60 * 5;
@@ -24,6 +24,12 @@ interface OrderTableRowProps {
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
     page: number
 } 
+
+interface OrderPaginationRequest {
+  criteria: PaginationCriteria,
+  customerName: string | null,
+  type: string | null
+}
 
 interface CustomTableCheckBoxProps {
   orderId: string,
@@ -107,7 +113,6 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
       retry: MAX_ATTEMPTS,
       retryDelay: 1000,
       staleTime: FIVE_MINUTES,
-      
   });
 
   console.log(
@@ -133,11 +138,9 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
-  
-  // cpy over api response hook
-  const { dispatch } = useApiResponse();
-  const { data, isLoading } = useQuery<AxiosResponse<Order[]>>(['',page,state.createCount,state.deleteCount,],{  
-    queryFn: async () => ( await callApi2<Order[]>(
+  const { dispatch, setToastOpen } = useApiResponse();
+  const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection],{  
+    queryFn: async () => callApi2<Order[]>(
       `filter/customer/${state.CustomerSelection}`, 
       "get", 
       "prod", 
@@ -145,14 +148,35 @@ function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
           pageNumber: page,
           customer: state.CustomerSelection 
       }
-  ) as AxiosResponse<Order[]>),
-      retry: MAX_ATTEMPTS,
-      retryDelay: 1000,
-      staleTime: FIVE_MINUTES,
-      onError: async (payload: AxiosError<Order[]>) => {
-      
-        return;
-      },
+    ),
+
+    retry: 0,
+    staleTime: FIVE_MINUTES,
+    onError: (error: AxiosError<Order[]>) => {
+      dispatch({
+        message: error.message,
+        status: error.status,
+        isError: true
+      });
+      setToastOpen(true);
+      setIsLoading(false);
+    },
+    onSettled: (
+      response: AxiosResponse<Order[], any> | undefined, 
+      error: AxiosError<Order[], any> | null
+    ) => {
+      if (response === undefined || response?.data?.length < 1) {
+        console.log(response, error);
+      }
+
+      setIsLoading(false);
+      dispatch({
+        message: `Showing results for: ${state.CustomerSelection}`,
+        status: 200,
+        isError: false
+      });
+      setToastOpen(true);
+    }
   });
 
   return (<>
@@ -180,7 +204,7 @@ function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
           const data = await callApi2<Order[]>(
               "Orders", 
               "get", 
-              "prod", 
+              "dev", 
               {
                   pageNumber: page
               }
@@ -238,20 +262,23 @@ function TableLoading() {
 export default function OrderTable() {
 
     
-    const [ page, setPage ] = useState(0);
+    const [ page, setPage ] = useState(1);
     const [ isLoading, setIsLoading ] = useState(false);
     const { state } = useTable();
     let data = null;
+    let criteria: PaginationCriteria = 0 as All;
 
     if (state.mode == "All-Orders") {
       data = <AllOrderResults page={page} setIsLoading={setIsLoading} />
     }
 
     else if (state.mode == "Specific-Customer") {
+      criteria = 1 as Customer;
       data = <CustomerSearchResults page={page} setIsLoading={setIsLoading} />
     }
 
     else if (state.mode == "Specific-Type") {
+      criteria = 2 as Type;
       data = <SpecificTypeResults page={page} setIsLoading={setIsLoading} />
     }
 
@@ -261,9 +288,28 @@ export default function OrderTable() {
     );
 
     if (queryTypeAndCustomer) {
+      criteria = 3 as CustomerAndType;
       data = <SpecificTypeAndCustomerResults page={page} setIsLoading={setIsLoading} />
     }
+    
+    const paginationQuery = useQuery({
+      queryKey: [state.CustomerSelection, state.OrderTypeSelection, state.createCount, state.deleteCount],
+      queryFn: async () => {
+        console.log("sent:", {
+          criteria: criteria,
+          customerName: state.CustomerSelection,
+          type: state.OrderTypeSelection
+        });
+        return await callApi2<number>(
+          `Orders/count?criteria=${criteria}&customerName=Aldi&type=Standard`,
+          "get",
+          "dev",
+          
+        );
+      } 
+    });
 
+    console.log("page data ", paginationQuery.data, paginationQuery.error )
     return (
         <TableContainer style={{ height: 500, width: '100%' }}>
             <Table>
@@ -286,6 +332,18 @@ export default function OrderTable() {
                   }
                 </TableBody>
             </Table>
+            <Box
+              display={"flex"}
+              justifyContent={"center"}
+              alignContent={"center"}
+              paddingTop={"1rem"}
+            >
+              <Pagination 
+                count={paginationQuery?.data?.data} 
+                color="secondary"
+                onChange={(event, pageNumber) => setPage(pageNumber)} 
+              />
+            </Box>
         </TableContainer>
     );
 }
