@@ -9,7 +9,8 @@ export interface TableState {
     CustomerSelection: string,
     selectedOrders: string[],
     createCount: number,
-    deleteCount: number
+    deleteCount: number,
+    page: number,
 }
 
 
@@ -25,7 +26,8 @@ const initialTableState: TableState = {
     CustomerSelection: "",
     selectedOrders: [],
     createCount: 0,
-    deleteCount: 0
+    deleteCount: 0,
+    page: 1
 }
 const TableContext = createContext<TableContextType>(null as any);
 

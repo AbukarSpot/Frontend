@@ -63,7 +63,7 @@ export function CustomerSearch({  }) {
                     setCustomer(event.target.value);
                 }}
                 sx={{
-                    width: "77%"
+                    width: "auto"
                 }}
             />
             <ThemeProvider theme={ButtonTheme}>
@@ -236,7 +236,7 @@ function CreateOrder() {
             return callApi2(
                 "Orders",
                 "post",
-                "prod",
+                "dev",
                 orderData
             );
         },
@@ -285,7 +285,7 @@ function DeleteSelected() {
             return await callApi2<number>(
                 "Orders",
                 "delete",
-                "prod",
+                "dev",
                 selectedOrders
             );
         }
@@ -341,10 +341,12 @@ function OrderType({
         setOrderType(event.target.value);
         getValue(event.target.value as OrderClassification);
 
+        if (mode === "create") return;
         let dispatchValue = event.target.value === "_"? "" : event.target.value;
         let modeValue = event.target.value === "_"? "All-Orders" : "Specific-Type";
         dispatch(prevState => ({
             ...prevState,
+            page: 1,
             mode: modeValue as TableMode,
             OrderTypeSelection: dispatchValue as OrderClassification
         }));
@@ -450,37 +452,43 @@ export function SearchFilter() {
             </Box>
 
             <Box
-                maxWidth={"60vw"}
                 sx={{
                     display: {
+                        xs: 'flex',
+                        sm: 'flex',
                         md: "none",
                         lg: "none",
                         xl: "none"
                     }
                 }}
+
+                justifyContent={"center"}
+                alignContent={"center"}
             >
-                <Grid container gap={1} columnGap={8}>
-                    
-                    <Grid item sm={12}>
-                        <CustomerSearch />
-                    </Grid>
-
-
-                    <Grid item sm={12}>
-                        <OrderType getValue={value => {}} mode="filter" />
-                    </Grid>
-
-                    <Grid container columnGap={0}>
-                        <Grid item xs={12} sm={6}>
-                            <CreateOrder />
+                <Box maxWidth={"70vw"}>
+                    <Grid container gap={1} columnGap={8}>
+                        
+                        <Grid item sm={12}>
+                            <CustomerSearch />
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
-                            <DeleteSelected />
-                        </Grid>
-                    </Grid>
 
-                </Grid>
+                        <Grid item sm={12}>
+                            <OrderType getValue={value => {}} mode="filter" />
+                        </Grid>
+
+                        <Grid container columnGap={0}>
+                            <Grid item xs={12} sm={6}>
+                                <CreateOrder />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <DeleteSelected />
+                            </Grid>
+                        </Grid>
+
+                    </Grid>
+                </Box>
             </Box>
         </>
     );

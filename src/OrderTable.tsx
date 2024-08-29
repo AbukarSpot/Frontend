@@ -1,10 +1,10 @@
-import { Box, Checkbox, Pagination, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Box, Checkbox, Pagination, PaginationItem, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ThemeProvider } from "@mui/material";
 import { Order } from "./api/OrderHandler";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
-import axios, { AxiosError, AxiosResponse } from "axios";
+import { AxiosError, AxiosResponse } from "axios";
 import { useApiResponse, useTable } from "./api/contexts";
 import { useQuery  as useQuery2 } from "react-query";
 import { All, Customer, CustomerAndType, PaginationCriteria, Type } from "./pagination";
@@ -58,9 +58,9 @@ function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRo
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
-              `filter/type/customer/${state.OrderTypeSelection}/${state.CustomerSelection}`, 
+              `filter/type/customer/${state.OrderTypeSelection}/${state.CustomerSelection}/${page}`, 
               "get", 
-              "prod", 
+              "dev", 
               {
                   pageNumber: page,
                   customer: state.CustomerSelection,
@@ -98,15 +98,14 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
-              `filter/type/${state.OrderTypeSelection}`, 
+              `filter/type/${state.OrderTypeSelection}/${page}`, 
               "get", 
-              "prod", 
+              "dev", 
               {
                   pageNumber: page,
                   type: state.OrderTypeSelection 
               }
           );
-          console.log("res after add, count: ", state.createCount, data);
           setIsLoading(false);
           return data as AxiosResponse<Order[]>;
       },
@@ -115,10 +114,10 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
       staleTime: FIVE_MINUTES,
   });
 
-  console.log(
-    "query key: ", `get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`,
-    "data:", data
-  );
+  // console.log(
+  //   "query key: ", `get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`,
+  //   "data:", data
+  // );
 
   return (<>
         {data?.data?.map((row, rowIndex) => {
@@ -141,9 +140,9 @@ function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   const { dispatch, setToastOpen } = useApiResponse();
   const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection],{  
     queryFn: async () => callApi2<Order[]>(
-      `filter/customer/${state.CustomerSelection}`, 
+      `filter/customer/${state.CustomerSelection}/${page}`, 
       "get", 
-      "prod", 
+      "dev", 
       {
           pageNumber: page,
           customer: state.CustomerSelection 
@@ -165,10 +164,8 @@ function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
       response: AxiosResponse<Order[], any> | undefined, 
       error: AxiosError<Order[], any> | null
     ) => {
-      if (response === undefined || response?.data?.length < 1) {
-        console.log(response, error);
-      }
 
+      // Throw an error on the server to trigger err state
       setIsLoading(false);
       dispatch({
         message: `Showing results for: ${state.CustomerSelection}`,
@@ -202,7 +199,7 @@ function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
-              "Orders", 
+              `Orders/${page}`, 
               "get", 
               "dev", 
               {
@@ -262,25 +259,25 @@ function TableLoading() {
 export default function OrderTable() {
 
     
-    const [ page, setPage ] = useState(1);
     const [ isLoading, setIsLoading ] = useState(false);
-    const { state } = useTable();
+    const { state, dispatch } = useTable();
     let data = null;
     let criteria: PaginationCriteria = 0 as All;
 
     if (state.mode == "All-Orders") {
-      data = <AllOrderResults page={page} setIsLoading={setIsLoading} />
+      data = <AllOrderResults page={state.page} setIsLoading={setIsLoading} />
+    }
+    
+    else if (state.mode == "Specific-Type") {
+      criteria = 1 as Type;
+      data = <SpecificTypeResults page={state.page} setIsLoading={setIsLoading} />
     }
 
     else if (state.mode == "Specific-Customer") {
-      criteria = 1 as Customer;
-      data = <CustomerSearchResults page={page} setIsLoading={setIsLoading} />
+      criteria = 2 as Customer;
+      data = <CustomerSearchResults page={state.page} setIsLoading={setIsLoading} />
     }
 
-    else if (state.mode == "Specific-Type") {
-      criteria = 2 as Type;
-      data = <SpecificTypeResults page={page} setIsLoading={setIsLoading} />
-    }
 
     const queryTypeAndCustomer: boolean = (
       state.CustomerSelection !== "" &&
@@ -289,29 +286,32 @@ export default function OrderTable() {
 
     if (queryTypeAndCustomer) {
       criteria = 3 as CustomerAndType;
-      data = <SpecificTypeAndCustomerResults page={page} setIsLoading={setIsLoading} />
+      data = <SpecificTypeAndCustomerResults page={state.page} setIsLoading={setIsLoading} />
     }
     
     const paginationQuery = useQuery({
-      queryKey: [state.CustomerSelection, state.OrderTypeSelection, state.createCount, state.deleteCount],
+      queryKey: [state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
       queryFn: async () => {
-        console.log("sent:", {
-          criteria: criteria,
-          customerName: state.CustomerSelection,
-          type: state.OrderTypeSelection
-        });
         return await callApi2<number>(
-          `Orders/count?criteria=${criteria}&customerName=Aldi&type=Standard`,
+          `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
           "get",
           "dev",
-          
+          {
+            criteria: criteria,
+            customerName: state.CustomerSelection,
+            type: state.OrderTypeSelection
+          } 
         );
       } 
     });
 
-    console.log("page data ", paginationQuery.data, paginationQuery.error )
+    console.log(`curr pg is: ${state.page}`);
     return (
-        <TableContainer style={{ height: 500, width: '100%' }}>
+      <>
+        <TableContainer style={{
+          height: "500px", 
+          width: '100%'
+        }}>
             <Table>
                 <TableHead>
                     <TableRow>
@@ -332,18 +332,29 @@ export default function OrderTable() {
                   }
                 </TableBody>
             </Table>
-            <Box
-              display={"flex"}
-              justifyContent={"center"}
-              alignContent={"center"}
-              paddingTop={"1rem"}
-            >
-              <Pagination 
-                count={paginationQuery?.data?.data} 
-                color="secondary"
-                onChange={(event, pageNumber) => setPage(pageNumber)} 
-              />
-            </Box>
         </TableContainer>
+        <Box
+          display={"flex"}
+          justifyContent={"center"}
+          alignContent={"center"}
+          paddingTop={"1rem"}
+        >
+          {/* <ThemeProvider theme={PaginationTheme}> */}
+            <Pagination 
+              count={paginationQuery?.data?.data}
+              color="primary"
+              renderItem={item => <PaginationItem 
+                                      {...item} 
+                                      selected={item.page === state.page} 
+                                    />
+                          }
+              onChange={(event, pageNumber) => dispatch(prevState => ({
+                ...prevState, 
+                page: pageNumber
+              }))} 
+            />
+          {/* </ThemeProvider> */}
+        </Box>
+      </>
     );
 }
