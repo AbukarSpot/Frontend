@@ -1,4 +1,4 @@
-import { Box, Checkbox, Pagination, PaginationItem, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ThemeProvider } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ThemeProvider, Typography } from "@mui/material";
 import { Order } from "./api/OrderHandler";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
@@ -6,10 +6,10 @@ import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
 import { AxiosError, AxiosResponse } from "axios";
 import { useApiResponse, useTable } from "./api/contexts";
-import { useQuery  as useQuery2 } from "react-query";
+import { isError, useQuery  as useQuery2 } from "react-query";
 import { All, Customer, CustomerAndType, PaginationCriteria, Type } from "./pagination";
 
-const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 5;
 const FIVE_MINUTES = 1000 * 60 * 5;
 const cellMap: {label: string, objectKey: keyof Order}[] = [
     { label: "Order ID", objectKey: "id" },
@@ -255,11 +255,121 @@ function TableLoading() {
   </>)
 }
 
+function DatabaseConnectionError({ 
+  connectionFailed = false,
+  failureCount = 0, 
+  maxFailureCount = 0, 
+  requestDelay = 0, 
+  allRetriesExhaused = false,
+  connectionEstablished = false
+}) {
+
+  const [ modalOpen, setModalOpen ] = useState<boolean>(true);
+  return (<>
+    <Modal
+      open={connectionFailed && modalOpen}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        border: "none"
+      }}
+      >
+      <Box
+        sx={{
+          width: "400px",
+          border: "none"
+        }}
+        >
+        <Paper
+          elevation={24}
+          sx={{
+            width: "100%",
+            padding: "1rem",
+            border: "none"
+          }}
+        >
+          <Stack
+            spacing={3}
+          >
+            {
+              connectionFailed?
+                <Fade
+                  key={1}
+                  in={true}
+                  timeout={1200}
+                >
+                  <Box>
+                    <Stack spacing={3}>
+                      <Alert 
+                        variant="filled" 
+                        severity="error"
+                      >
+                        Unable to connect to database.
+                      </Alert>
+                      <Typography variant="subtitle1" textAlign="center">
+                        Reconnecting, attempt: <span style={{ color: "green" }}>{failureCount}</span> / <span>{maxFailureCount}</span>
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Fade>
+                :
+                <Fade
+                  key={2}
+                  in={true}
+                  timeout={1200}
+                >
+                  <Box>
+                    <Stack spacing={3}>
+                      <Alert 
+                        variant="filled" 
+                        severity="success"
+                      >
+                        Connection Established.
+                      </Alert>
+                      <Typography variant="subtitle1" textAlign="center">
+                        You may close this modal.
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Fade>
+            }
+          </Stack>
+          <Divider />
+
+          <Box
+            display={"flex"}
+            alignContent={"end"}
+            justifyContent={"end"}
+            paddingTop={"1rem"}
+          >
+            <Button
+              color={!connectionFailed? "success": "error"}
+              variant="contained"
+              disabled={connectionFailed && !allRetriesExhaused}
+              onClick={event => setModalOpen(false)}
+            >
+              close
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    </Modal>
+  </>)
+}
+
+interface PaginationState {
+  isError: boolean
+}
 
 export default function OrderTable() {
 
     
     const [ isLoading, setIsLoading ] = useState(false);
+    const [ paginationState, setPaginationState ] = useState<PaginationState>({
+      isError: false
+    });
+
     const { state, dispatch } = useTable();
     let data = null;
     let criteria: PaginationCriteria = 0 as All;
@@ -289,8 +399,30 @@ export default function OrderTable() {
       data = <SpecificTypeAndCustomerResults page={state.page} setIsLoading={setIsLoading} />
     }
     
-    const paginationQuery = useQuery({
-      queryKey: [state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+    
+  //   const paginationQuery = useQuery({
+  //     queryKey: [state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+  //     queryFn: async () => {
+  //       return await callApi2<number>(
+  //         `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
+  //         "get",
+  //         "dev",
+  //         {
+  //           criteria: criteria,
+  //           customerName: state.CustomerSelection,
+  //           type: state.OrderTypeSelection
+  //         } 
+  //       );
+  //     },
+  //     retryDelay: 3000,
+  //     retry: MAX_ATTEMPTS - 1,
+  //     staleTime: FIVE_MINUTES
+  //   },
+  // );
+
+  
+  const paginationQuery = useQuery2([state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+    {
       queryFn: async () => {
         return await callApi2<number>(
           `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
@@ -302,10 +434,30 @@ export default function OrderTable() {
             type: state.OrderTypeSelection
           } 
         );
-      } 
-    });
+      },
+      retryDelay: 3000,
+      retry: MAX_ATTEMPTS - 1,
+      staleTime: FIVE_MINUTES,
+      onError: () => setPaginationState(prevState => ({ ...prevState, isError: true })),
+      onSuccess: () => setPaginationState(prevState => ({ ...prevState, isError: false }))
+    }
+  );
 
-    console.log(`curr pg is: ${state.page}`);
+  // fix this component firing
+  const dbErrorComponent = <>
+    <DatabaseConnectionError
+        connectionFailed={paginationState.isError || !paginationQuery.isFetched} 
+        connectionEstablished={!paginationQuery.isFetching || !paginationQuery.isLoading}
+        failureCount={paginationQuery.failureCount}
+        requestDelay={3000}
+        maxFailureCount={MAX_ATTEMPTS}
+        allRetriesExhaused={paginationQuery.failureCount === MAX_ATTEMPTS}/>
+  </>
+    console.log(`err state: ${paginationQuery.isError}`, 
+      (paginationQuery.error as AxiosError<number>)?.response?.data,
+      paginationQuery?.data?.data,
+      paginationQuery.isRefetchError
+    );
     return (
       <>
         <TableContainer style={{
@@ -326,9 +478,13 @@ export default function OrderTable() {
                 
                 <TableBody>
                   {
-                    isLoading? 
-                      <TableLoading /> :
-                      data
+                    paginationQuery.isError?
+                      dbErrorComponent
+                      :
+                      isLoading? 
+                        <TableLoading /> 
+                        :
+                          data
                   }
                 </TableBody>
             </Table>
@@ -358,3 +514,4 @@ export default function OrderTable() {
       </>
     );
 }
+
