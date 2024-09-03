@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ThemeProvider, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, Typography } from "@mui/material";
 import { Order } from "./api/OrderHandler";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
@@ -19,6 +19,7 @@ const cellMap: {label: string, objectKey: keyof Order}[] = [
     { label: "Customer", objectKey: "customer" },
 
 ];
+
 export type OrderMutationFunction = UseMutationResult<Order[], Error ,number, Order[]> 
 interface OrderTableRowProps {
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -36,6 +37,20 @@ interface CustomTableCheckBoxProps {
   selectOrder: (orderId: string, action: "push" | "pop") => void
 } 
 
+interface CustomTableRowProps {
+  row: Order,
+  rowId: number,
+  selectOrder: (orderId: string, action: "push" | "pop") => void
+} 
+
+
+interface CustomAutocompleteProps<T = any> {
+  value: string,
+  options: string[],
+  colKey: string,
+  getValue: React.Dispatch<React.SetStateAction<Order>>
+} 
+
 function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps) {
 
   return (
@@ -49,6 +64,138 @@ function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps)
   )
 }
 
+function CustomAutocomplete<T>({ value, options, colKey, getValue }: CustomAutocompleteProps<T>) {
+  
+  const [_value, setValue] = useState<string>(value);
+
+  return <>
+      <Autocomplete
+        value={_value} 
+        options={options} 
+        renderInput={(params) => <TextField 
+                                    {...params}
+                                    sx={{
+                                      border: "hidden", 
+                                      textAlign: "center" 
+                                    }} 
+                                    label="" 
+                                  />
+        }
+        disableClearable
+        sx={{
+          "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+            border: "none"
+          }
+        }}
+        
+        onChange={(event, newInputValue) => {
+          setValue(newInputValue);
+          getValue(prevState => ({
+            ...prevState,
+            [colKey]: newInputValue
+          }));
+        }}
+      />
+  </>
+}
+
+// debounce here and store data in state
+function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
+
+  const [ order, setOrder ] = useState<Order>(row);
+  const { state, dispatch, setToastOpen }= useApiResponse()
+  const [ prevState, setPrevState ] = useState<Order>(row);
+  useQuery2([order], {
+    queryFn: () => {
+      setToastOpen(false);
+      return callApi2<void>(
+        `Orders/${order.id}`,
+        "patch",
+        "dev",
+        {
+          orderId: order.id,
+          createdDate: order.date,
+          username: order.by,
+          orderType: order.type,
+          customerName: order.customer
+        }
+      )
+    },
+    onSuccess: () => {
+      console.log("success hit");
+      dispatch({
+        message: `Updated order: ${order.id}`,
+        status: 200,
+        isError: false
+      });
+      setToastOpen(true);
+      setPrevState(order);
+    },
+
+    onError: (error: AxiosError) => {
+      console.log("errror hit");
+      dispatch({
+        message: `Unable to update ${order.id} at this time.`,
+        status: error.code,
+        isError: true
+      });
+      setToastOpen(true);
+      setOrder(prevState);
+    },
+    staleTime: FIVE_MINUTES,
+    cacheTime: 10000
+  })
+
+  return (<>
+    <TableRow key={rowId}>
+      <TableCell>
+        <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
+      </TableCell>
+
+      <TableCell>
+        {row["id"]}
+      </TableCell>
+      
+      <TableCell>
+        {row["date"]}
+      </TableCell>
+
+      {/* add data */}
+      <TableCell>
+        <CustomAutocomplete 
+          value={row["by"]} 
+          options={[ row["by"], "Ligba" ]}
+          colKey="Username"
+          getValue={setOrder} 
+        />
+      </TableCell>
+
+      <TableCell>
+        <CustomAutocomplete
+          value={row["type"]} 
+          options={[
+            "Standard",
+            "SaleOrder",
+            "PurchaseOrder",
+            "TransferOrder",
+            "ReturnOrder"
+          ]}
+          colKey="OrderType"
+          getValue={setOrder} 
+        />
+      </TableCell>
+
+      <TableCell>
+        <CustomAutocomplete
+          value={row["customer"]} 
+          options={[ row["customer"] ]} 
+          colKey="CustomerName"
+          getValue={setOrder}
+        />
+      </TableCell>
+    </TableRow>
+  </>);
+}
 
 function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRowProps) {
   
@@ -78,14 +225,11 @@ function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRo
   
   return (<>
         {data?.data?.map((row, rowIndex) => {
-          return <TableRow key={rowIndex}>
-                    <TableCell>
-                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
-                    </TableCell>
-                    {
-                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
-                    }
-                  </TableRow>
+          return <CustomTableRow 
+                    rowId={rowIndex}
+                    row={row}
+                    selectOrder={selectOrder}
+                  />
         })}
   </>)
 }
@@ -121,14 +265,11 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 
   return (<>
         {data?.data?.map((row, rowIndex) => {
-          return <TableRow key={rowIndex}>
-                    <TableCell>
-                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
-                    </TableCell>
-                    {
-                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
-                    }
-                  </TableRow>
+          return <CustomTableRow 
+                    rowId={rowIndex}
+                    row={row}
+                    selectOrder={selectOrder}
+                  />
         })}
   </>)
 }
@@ -178,14 +319,11 @@ function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 
   return (<>
         {data?.data?.map((row, rowIndex) => {
-          return <TableRow key={rowIndex}>
-                    <TableCell>
-                      <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
-                    </TableCell>
-                    {
-                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
-                    }
-                  </TableRow>
+          return <CustomTableRow 
+                    rowId={rowIndex}
+                    row={row}
+                    selectOrder={selectOrder}
+                  />
         })}
   </>)
 }
@@ -217,17 +355,23 @@ function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
 
   return (<>
       {data?.data?.map((row, rowIndex) => {
-        return <TableRow key={rowIndex}>
-                  <TableCell>
-                    <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
-                  </TableCell>
-                  {
-                      cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
-                  }
-                </TableRow>
+        return <CustomTableRow 
+          rowId={rowIndex}
+          row={row}
+          selectOrder={selectOrder}
+        />
       })}
   </>)
 }
+
+// return <TableRow key={rowIndex}>
+//                   <TableCell>
+//                     <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
+//                   </TableCell>
+//                   {
+//                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
+//                   }
+//                 </TableRow>
 
 function TableLoading() {
   

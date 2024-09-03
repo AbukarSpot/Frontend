@@ -29,7 +29,6 @@ import { Customer, User } from "./api/UserHandler";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
 import { TableMode, useApiResponse, useTable } from "./api/contexts"
-import { stat } from "fs";
 
 export function CustomerSearch({  }) {
     
@@ -62,8 +61,12 @@ export function CustomerSearch({  }) {
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                     setCustomer(event.target.value);
                 }}
+
                 sx={{
-                    width: "auto"
+                    width: {
+                        xs: "82%",
+                        md: "77%"
+                    }
                 }}
             />
             <ThemeProvider theme={ButtonTheme}>
@@ -104,7 +107,16 @@ function CreateOrderModal({
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        padding: "2rem"
+        padding: {
+            xs: "2rem",
+            md: "2rem"
+        },
+        width: {
+            xs: "80%",
+            md: "40%",
+            lg: "30%",
+            xl: "20%",
+        } 
     }
 
     const FIVE_MINUTES = 1000 * 60 * 5;
@@ -142,7 +154,7 @@ function CreateOrderModal({
             >
                 <Grid container spacing={1}>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <CustomAutocomplete
                             label="User"
                             isLoading={userData.isLoading}
@@ -160,7 +172,7 @@ function CreateOrderModal({
                         />
                     </Grid>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <CustomAutocomplete
                             label="Customer"
                             isLoading={customerData.isLoading}
@@ -178,7 +190,7 @@ function CreateOrderModal({
                         />
                     </Grid>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <OrderType
                             mode="create"
                             getValue={value => {
@@ -465,24 +477,24 @@ export function SearchFilter() {
                 justifyContent={"center"}
                 alignContent={"center"}
             >
-                <Box maxWidth={"70vw"}>
+                <Box >
                     <Grid container gap={1} columnGap={8}>
                         
-                        <Grid item sm={12}>
+                        <Grid item xs={12} sm={12}>
                             <CustomerSearch />
                         </Grid>
 
 
-                        <Grid item sm={12}>
+                        <Grid item xs={12} sm={12}>
                             <OrderType getValue={value => {}} mode="filter" />
                         </Grid>
 
-                        <Grid container columnGap={0}>
-                            <Grid item xs={12} sm={6}>
+                        <Grid container>
+                            <Grid item xs={6} sm={6}>
                                 <CreateOrder />
                             </Grid>
 
-                            <Grid item xs={12} sm={6}>
+                            <Grid item xs={6} sm={6}>
                                 <DeleteSelected />
                             </Grid>
                         </Grid>

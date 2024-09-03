@@ -63,6 +63,11 @@ export async function callApi2<T = any>(
                 data: data,
             });
         }
+        else if (method === 'patch') {
+            response = await axios.patch<T>(`${base_url}${route}`, {                
+                data: data,
+            });
+        }
 
         return response as AxiosResponse<T>;
     } catch (error) {
