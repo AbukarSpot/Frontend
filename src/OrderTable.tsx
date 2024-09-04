@@ -1,13 +1,15 @@
 import { Alert, Autocomplete, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, Typography } from "@mui/material";
 import { Order } from "./api/OrderHandler";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { UseMutateFunction, useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
 import { AxiosError, AxiosResponse } from "axios";
 import { useApiResponse, useTable } from "./api/contexts";
 import { isError, useQuery  as useQuery2 } from "react-query";
-import { All, Customer, CustomerAndType, PaginationCriteria, Type } from "./pagination";
+import { All, Customer as CustomerType, CustomerAndType, PaginationCriteria, Type } from "./pagination";
+import { User, Customer } from "./api/UserHandler";
+import { useDebounce } from "@uidotdev/usehooks";
 
 const MAX_ATTEMPTS = 5;
 const FIVE_MINUTES = 1000 * 60 * 5;
@@ -23,13 +25,20 @@ const cellMap: {label: string, objectKey: keyof Order}[] = [
 export type OrderMutationFunction = UseMutationResult<Order[], Error ,number, Order[]> 
 interface OrderTableRowProps {
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
-    page: number
+    page: number,
+    users: string[],
+    customers: string[]
 } 
 
 interface OrderPaginationRequest {
   criteria: PaginationCriteria,
   customerName: string | null,
   type: string | null
+}
+
+interface UpdateOrderRequest {
+  value: string,
+  key: string
 }
 
 interface CustomTableCheckBoxProps {
@@ -40,6 +49,8 @@ interface CustomTableCheckBoxProps {
 interface CustomTableRowProps {
   row: Order,
   rowId: number,
+  users: string[],
+  customers: string[],
   selectOrder: (orderId: string, action: "push" | "pop") => void
 } 
 
@@ -48,6 +59,7 @@ interface CustomAutocompleteProps<T = any> {
   value: string,
   options: string[],
   colKey: string,
+  mutationFn: UseMutateFunction<AxiosResponse<void, any>, AxiosError<unknown, any>, UpdateOrderRequest, unknown> | undefined,
   getValue: React.Dispatch<React.SetStateAction<Order>>
 } 
 
@@ -64,14 +76,43 @@ function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps)
   )
 }
 
-function CustomAutocomplete<T>({ value, options, colKey, getValue }: CustomAutocompleteProps<T>) {
-  
+function CustomAutocomplete<T>({ value, options, colKey, getValue, mutationFn }: CustomAutocompleteProps<T>) {
+  // console.log(colKey, "options are", options);
   const [_value, setValue] = useState<string>(value);
+  const handleChange = (event: React.SyntheticEvent, value: string) => {
+    const request: UpdateOrderRequest = {
+      key: colKey,
+      value: value
+    }
+
+    if (mutationFn !== undefined) {
+      mutationFn(request,{
+        onSuccess: () => {
+          setValue(value);
+          getValue(prevState => ({
+              ...prevState,
+              [colKey]: value
+            }));
+        },
+
+        onError: () => {
+          // alert("update failed")
+        }
+      });
+    }
+    else {
+      setValue(value);
+      getValue(prevState => ({
+          ...prevState,
+          [colKey]: value
+        }));
+    }
+  }
 
   return <>
       <Autocomplete
         value={_value} 
-        options={options} 
+        options={options}
         renderInput={(params) => <TextField 
                                     {...params}
                                     sx={{
@@ -88,37 +129,37 @@ function CustomAutocomplete<T>({ value, options, colKey, getValue }: CustomAutoc
           }
         }}
         
-        onChange={(event, newInputValue) => {
-          setValue(newInputValue);
-          getValue(prevState => ({
-            ...prevState,
-            [colKey]: newInputValue
-          }));
-        }}
+        onChange={handleChange}
       />
   </>
 }
 
 // debounce here and store data in state
-function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
+function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTableRowProps) {
 
   const [ order, setOrder ] = useState<Order>(row);
   const { state, dispatch, setToastOpen }= useApiResponse()
+  const { dispatch: tableDispatch } = useTable();
   const [ prevState, setPrevState ] = useState<Order>(row);
-  useQuery2([order], {
-    queryFn: () => {
+ 
+  const updateMuatation = useMutation({
+    mutationKey: [order],
+    mutationFn: (orderRequest: UpdateOrderRequest) => {
+      const request = {
+        orderId: order.id,
+        createdDate: order.date,
+        username: order.by,
+        orderType: order.type,
+        customerName: order.customer,
+        [orderRequest.key]: orderRequest.value
+      };
+
       setToastOpen(false);
       return callApi2<void>(
-        `Orders/${order.id}`,
+        `Orders?orderId=${order.id}&createdDate=${order.date}&username=${request.username}&orderType=${request.orderType}&customerName=${request.customerName}`,
         "patch",
         "dev",
-        {
-          orderId: order.id,
-          createdDate: order.date,
-          username: order.by,
-          orderType: order.type,
-          customerName: order.customer
-        }
+        request
       )
     },
     onSuccess: () => {
@@ -128,10 +169,13 @@ function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
         status: 200,
         isError: false
       });
-      setToastOpen(true);
-      setPrevState(order);
-    },
 
+      tableDispatch(prevState => ({
+        ...prevState,
+        updateCount: prevState.updateCount + 1
+      }))
+      setToastOpen(true);
+    },
     onError: (error: AxiosError) => {
       console.log("errror hit");
       dispatch({
@@ -140,11 +184,8 @@ function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
         isError: true
       });
       setToastOpen(true);
-      setOrder(prevState);
-    },
-    staleTime: FIVE_MINUTES,
-    cacheTime: 10000
-  })
+    }
+  });
 
   return (<>
     <TableRow key={rowId}>
@@ -164,9 +205,10 @@ function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
       <TableCell>
         <CustomAutocomplete 
           value={row["by"]} 
-          options={[ row["by"], "Ligba" ]}
+          options={users}
           colKey="Username"
-          getValue={setOrder} 
+          getValue={setOrder}
+          mutationFn={updateMuatation.mutate} 
         />
       </TableCell>
 
@@ -181,27 +223,29 @@ function CustomTableRow({ row, rowId, selectOrder }: CustomTableRowProps) {
             "ReturnOrder"
           ]}
           colKey="OrderType"
-          getValue={setOrder} 
+          getValue={setOrder}
+          mutationFn={undefined}
         />
       </TableCell>
 
       <TableCell>
         <CustomAutocomplete
           value={row["customer"]} 
-          options={[ row["customer"] ]} 
+          options={customers} 
           colKey="CustomerName"
           getValue={setOrder}
+          mutationFn={updateMuatation.mutate} 
         />
       </TableCell>
     </TableRow>
   </>);
 }
 
-function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRowProps) {
+function SpecificTypeAndCustomerResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
   const { data } = useQuery({
-    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
+    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
@@ -229,16 +273,18 @@ function SpecificTypeAndCustomerResults({ page = 0, setIsLoading }: OrderTableRo
                     rowId={rowIndex}
                     row={row}
                     selectOrder={selectOrder}
+                    users={users}
+                    customers={customers}
                   />
         })}
   </>)
 }
 
-function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
+function SpecificTypeResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
   const { data } = useQuery({
-    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}`],  
+    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
@@ -269,17 +315,19 @@ function SpecificTypeResults({ page = 0, setIsLoading }: OrderTableRowProps) {
                     rowId={rowIndex}
                     row={row}
                     selectOrder={selectOrder}
+                    users={users}
+                    customers={customers}
                   />
         })}
   </>)
 }
 
 
-function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
+function CustomerSearchResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
   const { dispatch, setToastOpen } = useApiResponse();
-  const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection],{  
+  const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection, state.updateCount],{  
     queryFn: async () => callApi2<Order[]>(
       `filter/customer/${state.CustomerSelection}/${page}`, 
       "get", 
@@ -323,17 +371,19 @@ function CustomerSearchResults({ page = 0, setIsLoading }: OrderTableRowProps) {
                     rowId={rowIndex}
                     row={row}
                     selectOrder={selectOrder}
+                    users={users}
+                    customers={customers}
                   />
         })}
   </>)
 }
 
 
-function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
+function AllOrderResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
 
   const { state, selectOrder } = useTable()
   const { data } = useQuery({
-    queryKey: [`get-all-orders-${page}-${state.createCount}-${state.deleteCount}`, state.createCount],  
+    queryKey: [`get-all-orders-${page}-${state.createCount}-${state.deleteCount}`, state.createCount, state.updateCount],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
@@ -359,19 +409,12 @@ function AllOrderResults({ page = 0, setIsLoading }: OrderTableRowProps) {
           rowId={rowIndex}
           row={row}
           selectOrder={selectOrder}
+          users={users}
+          customers={customers}
         />
       })}
   </>)
 }
-
-// return <TableRow key={rowIndex}>
-//                   <TableCell>
-//                     <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
-//                   </TableCell>
-//                   {
-//                       cellMap.map((cell, cellIndex) => (<TableCell key={(rowIndex * 10) + cellIndex}>{row[cell.objectKey]}</TableCell>))
-//                   }
-//                 </TableRow>
 
 function TableLoading() {
   
@@ -518,18 +561,93 @@ export default function OrderTable() {
     let data = null;
     let criteria: PaginationCriteria = 0 as All;
 
+    const paginationQuery = useQuery2([state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+      {
+        queryFn: async () => {
+          return await callApi2<number>(
+            `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
+            "get",
+            "dev",
+            {
+              criteria: criteria,
+              customerName: state.CustomerSelection,
+              type: state.OrderTypeSelection
+            } 
+          );
+        },
+        retryDelay: 3000,
+        retry: MAX_ATTEMPTS - 1,
+        staleTime: FIVE_MINUTES,
+        onError: () => setPaginationState(prevState => ({ ...prevState, isError: true })),
+        onSuccess: () => setPaginationState(prevState => ({ ...prevState, isError: false }))
+      }
+    );
+
+    const usersQuery = useQuery2(["users", state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+      {
+        queryFn: async () => {
+          const users = await callApi2<User[]>(
+            "User",
+            "get",
+            "dev" 
+          );
+
+          return users?.data?.map(user => user.username);
+        },
+        retryDelay: 3000,
+        retry: MAX_ATTEMPTS - 1,
+        staleTime: FIVE_MINUTES,
+        onError: () => setPaginationState(prevState => ({ ...prevState, isError: true })),
+        onSuccess: () => setPaginationState(prevState => ({ ...prevState, isError: false }))
+      }
+    );
+
+    const customersQuery = useQuery2(["customers", state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
+      {
+        queryFn: async () => {
+          const customers = await callApi2<Customer[]>(
+            "Customer",
+            "get",
+            "dev" 
+          );
+          return customers?.data?.map(customer => customer.name);
+        },
+        retryDelay: 3000,
+        retry: MAX_ATTEMPTS - 1,
+        staleTime: FIVE_MINUTES,
+        onError: () => setPaginationState(prevState => ({ ...prevState, isError: true })),
+        onSuccess: () => setPaginationState(prevState => ({ ...prevState, isError: false }))
+      }
+    );
+
+
     if (state.mode == "All-Orders") {
-      data = <AllOrderResults page={state.page} setIsLoading={setIsLoading} />
+      data = <AllOrderResults 
+                  page={state.page} 
+                  setIsLoading={setIsLoading} 
+                  users={usersQuery?.data ?? [""]} 
+                  customers={customersQuery?.data ?? [""]} 
+              />
     }
     
     else if (state.mode == "Specific-Type") {
       criteria = 1 as Type;
-      data = <SpecificTypeResults page={state.page} setIsLoading={setIsLoading} />
+      data = <SpecificTypeResults 
+                  page={state.page} 
+                  setIsLoading={setIsLoading} 
+                  users={usersQuery?.data ?? [""]} 
+                  customers={customersQuery?.data ?? [""]}  
+              />
     }
 
     else if (state.mode == "Specific-Customer") {
-      criteria = 2 as Customer;
-      data = <CustomerSearchResults page={state.page} setIsLoading={setIsLoading} />
+      criteria = 2 as CustomerType;
+      data = <CustomerSearchResults
+                  page={state.page} 
+                  setIsLoading={setIsLoading} 
+                  users={usersQuery?.data ?? [""]}  
+                  customers={customersQuery?.data ?? [""]} 
+              />
     }
 
 
@@ -540,7 +658,12 @@ export default function OrderTable() {
 
     if (queryTypeAndCustomer) {
       criteria = 3 as CustomerAndType;
-      data = <SpecificTypeAndCustomerResults page={state.page} setIsLoading={setIsLoading} />
+      data = <SpecificTypeAndCustomerResults 
+                  page={state.page} 
+                  setIsLoading={setIsLoading} 
+                  users={usersQuery?.data ?? [""]} 
+                  customers={customersQuery?.data ?? [""]} 
+              />
     }
     
     
@@ -563,29 +686,6 @@ export default function OrderTable() {
   //     staleTime: FIVE_MINUTES
   //   },
   // );
-
-  
-  const paginationQuery = useQuery2([state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
-    {
-      queryFn: async () => {
-        return await callApi2<number>(
-          `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
-          "get",
-          "dev",
-          {
-            criteria: criteria,
-            customerName: state.CustomerSelection,
-            type: state.OrderTypeSelection
-          } 
-        );
-      },
-      retryDelay: 3000,
-      retry: MAX_ATTEMPTS - 1,
-      staleTime: FIVE_MINUTES,
-      onError: () => setPaginationState(prevState => ({ ...prevState, isError: true })),
-      onSuccess: () => setPaginationState(prevState => ({ ...prevState, isError: false }))
-    }
-  );
 
   // fix this component firing
   const dbErrorComponent = <>
