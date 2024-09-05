@@ -4,6 +4,11 @@ const BASE_URL = process.env.REACT_APP_BACKEND_ROUTE;
 
 export type OrderClassification = "Standard" | "SaleOrder" | "PurchaseOrder" | "TransferOrder"| "ReturnOrder"; 
 
+export type OrderTypeAutocompleteOptions = {
+    key: OrderClassification | string,
+    label: string
+};
+
 export type Order = {
     id: string,
     date: string,

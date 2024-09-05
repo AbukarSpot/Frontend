@@ -1,5 +1,5 @@
 import { Alert, Autocomplete, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, Typography } from "@mui/material";
-import { Order } from "./api/OrderHandler";
+import { Order, OrderClassification, OrderTypeAutocompleteOptions } from "./api/OrderHandler";
 import { UseMutateFunction, useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
@@ -56,12 +56,37 @@ interface CustomTableRowProps {
 
 
 interface CustomAutocompleteProps<T = any> {
-  value: string,
-  options: string[],
+  value: NonNullable<T> | undefined,
+  options: readonly T[],
   colKey: string,
   mutationFn: UseMutateFunction<AxiosResponse<void, any>, AxiosError<unknown, any>, UpdateOrderRequest, unknown> | undefined,
-  getValue: React.Dispatch<React.SetStateAction<Order>>
+  getValue: React.Dispatch<React.SetStateAction<Order>>,
+  getOptionKey: ((option: T) => string | number) | undefined,
+  getOptionLabel: ((option: T) => string) | undefined
 } 
+
+const orderTypeOptions: OrderTypeAutocompleteOptions[] = [
+  {
+    key: "Standard",
+    label: "Standard"
+  },
+  {
+    key: "SaleOrder",
+    label: "Sale"
+  },
+  {
+    key: "PurchaseOrder",
+    label: "Purchase"
+  },
+  {
+    key: "TransferOrder",
+    label: "Transfer"
+  },
+  {
+    key: "ReturnOrder",
+    label: "Return"
+  }
+];
 
 function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps) {
 
@@ -76,22 +101,33 @@ function CustomTableCheckBox({ orderId, selectOrder }: CustomTableCheckBoxProps)
   )
 }
 
-function CustomAutocomplete<T>({ value, options, colKey, getValue, mutationFn }: CustomAutocompleteProps<T>) {
+function CustomAutocomplete<T = string>(
+  {  value, 
+     options, 
+     colKey, 
+     getValue, 
+     mutationFn, 
+     getOptionKey,
+     getOptionLabel
+  }: CustomAutocompleteProps<T>
+  ) {
   // console.log(colKey, "options are", options);
-  const [_value, setValue] = useState<string>(value);
-  const handleChange = (event: React.SyntheticEvent, value: string) => {
+  const [_value, setValue] = useState<NonNullable<T> | undefined>(value);
+  const handleChange = (event: React.SyntheticEvent, value: NonNullable<T>) => {
+    const newValue = typeof(value) === "string"? value: (value as any as OrderTypeAutocompleteOptions).key as string;
     const request: UpdateOrderRequest = {
       key: colKey,
-      value: value
+      value: newValue
     }
 
     if (mutationFn !== undefined) {
       mutationFn(request,{
         onSuccess: () => {
-          setValue(value);
+          // keep the value as an obj when dealing with the state
+          setValue(value as NonNullable<T>);
           getValue(prevState => ({
               ...prevState,
-              [colKey]: value
+              [colKey]: newValue
             }));
         },
 
@@ -104,7 +140,7 @@ function CustomAutocomplete<T>({ value, options, colKey, getValue, mutationFn }:
       setValue(value);
       getValue(prevState => ({
           ...prevState,
-          [colKey]: value
+          [colKey]: newValue
         }));
     }
   }
@@ -113,6 +149,8 @@ function CustomAutocomplete<T>({ value, options, colKey, getValue, mutationFn }:
       <Autocomplete
         value={_value} 
         options={options}
+        getOptionKey={getOptionKey}
+        getOptionLabel={getOptionLabel}
         renderInput={(params) => <TextField 
                                     {...params}
                                     sx={{
@@ -141,7 +179,9 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
   const { state, dispatch, setToastOpen }= useApiResponse()
   const { dispatch: tableDispatch } = useTable();
   const [ prevState, setPrevState ] = useState<Order>(row);
- 
+  let value = orderTypeOptions.filter(order => order.key === row["type"])[0];
+  console.log(row["type"], "=>", value);
+
   const updateMuatation = useMutation({
     mutationKey: [order],
     mutationFn: (orderRequest: UpdateOrderRequest) => {
@@ -189,15 +229,15 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
 
   return (<>
     <TableRow key={rowId}>
-      <TableCell>
+      <TableCell align="center">
         <CustomTableCheckBox orderId={row.id} selectOrder={selectOrder} />
       </TableCell>
 
-      <TableCell>
+      <TableCell align="center">
         {row["id"]}
       </TableCell>
       
-      <TableCell>
+      <TableCell align="center">
         {row["date"]}
       </TableCell>
 
@@ -208,23 +248,21 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
           options={users}
           colKey="username"
           getValue={setOrder}
-          mutationFn={updateMuatation.mutate} 
+          mutationFn={updateMuatation.mutate}
+          getOptionKey={option => option} 
+          getOptionLabel={option => option} 
         />
       </TableCell>
 
       <TableCell>
-        <CustomAutocomplete
-          value={row["type"]} 
-          options={[
-            "Standard",
-            "SaleOrder",
-            "PurchaseOrder",
-            "TransferOrder",
-            "ReturnOrder"
-          ]}
+        <CustomAutocomplete<OrderTypeAutocompleteOptions>
+          value={value} 
+          options={orderTypeOptions}
           colKey="orderType"
           getValue={setOrder}
           mutationFn={updateMuatation.mutate}
+          getOptionKey={option => option.key} 
+          getOptionLabel={option => option.label}
         />
       </TableCell>
 
@@ -234,7 +272,9 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
           options={customers} 
           colKey="customerName"
           getValue={setOrder}
-          mutationFn={updateMuatation.mutate} 
+          mutationFn={updateMuatation.mutate}
+          getOptionKey={option => option} 
+          getOptionLabel={option => option} 
         />
       </TableCell>
     </TableRow>
@@ -665,27 +705,6 @@ export default function OrderTable() {
                   customers={customersQuery?.data ?? [""]} 
               />
     }
-    
-    
-  //   const paginationQuery = useQuery({
-  //     queryKey: [state.CustomerSelection, state.mode, state.OrderTypeSelection, state.createCount, state.deleteCount],
-  //     queryFn: async () => {
-  //       return await callApi2<number>(
-  //         `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
-  //         "get",
-  //         "dev",
-  //         {
-  //           criteria: criteria,
-  //           customerName: state.CustomerSelection,
-  //           type: state.OrderTypeSelection
-  //         } 
-  //       );
-  //     },
-  //     retryDelay: 3000,
-  //     retry: MAX_ATTEMPTS - 1,
-  //     staleTime: FIVE_MINUTES
-  //   },
-  // );
 
   // fix this component firing
   const dbErrorComponent = <>
@@ -705,17 +724,17 @@ export default function OrderTable() {
     return (
       <>
         <TableContainer style={{
-          height: "500px", 
+          height: "550px", 
           width: '100%'
         }}>
             <Table>
                 <TableHead>
                     <TableRow>
-                        <TableCell>
+                        <TableCell align="center">
                             <Checkbox></Checkbox>
                         </TableCell>
                         {cellMap.map((cell) => (
-                            <TableCell className="cell" key={cell.label} align='center'>{cell.label}</TableCell>
+                            <TableCell className="cell" key={cell.label} align="center">{cell.label}</TableCell>
                         ))}
                     </TableRow>
                 </TableHead>
