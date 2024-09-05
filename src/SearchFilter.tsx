@@ -1,15 +1,19 @@
 import {
+    Alert,
     Box,
     Button,
     CircularProgress,
     Divider,
     FormControl,
     Grid,
+    InputAdornment,
     MenuItem,
     Modal,
     Paper,
     Select,
     SelectChangeEvent,
+    Slide,
+    Snackbar,
     TextField,
 } from "@mui/material";
 import SearchIcon from '@mui/icons-material/Search';
@@ -17,16 +21,14 @@ import { ThemeProvider } from "@emotion/react";
 import { ButtonTheme, OrderDropDownTheme } from "./Themes";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { KeyboardArrowDown } from "@mui/icons-material";
 import { OrderClassification, OrderRequest } from "./api/OrderHandler";
 import { CustomAutocomplete } from "./CustomAutocomplete";
 import { Customer, User } from "./api/UserHandler";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
-import { useTable } from "./api/contexts"
-import { TableMode } from "./redux/tableReducer";
-import { error } from "console";
+import { TableMode, useApiResponse, useTable } from "./api/contexts"
 
 export function CustomerSearch({  }) {
     
@@ -51,12 +53,20 @@ export function CustomerSearch({  }) {
                 InputProps={{
                     style: {
                         borderTopRightRadius: "0px",
-                        borderBottomRightRadius: "0px"
+                        borderBottomRightRadius: "0px",
+                        padding: "none"
                     }
                 }}
                 value={customer}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                     setCustomer(event.target.value);
+                }}
+
+                sx={{
+                    width: {
+                        xs: "82%",
+                        md: "77%"
+                    }
                 }}
             />
             <ThemeProvider theme={ButtonTheme}>
@@ -65,10 +75,10 @@ export function CustomerSearch({  }) {
                     sx={{
                         borderTopLeftRadius: "0px",
                         borderBottomLeftRadius: "0px",
-                        height: "100%"
+                        height: "2.85em"
                     }}
                     onClick={handleCustomerSubmission}
-                >
+                    >
                     <Box
                         display={"flex"}
                         justifyContent={"center"}
@@ -78,9 +88,9 @@ export function CustomerSearch({  }) {
                             sx={{
                                 color: "#fff"
                             }}
-
+                            
                             fontSize="medium"
-                        />
+                            />
                     </Box>
                 </Button>
             </ThemeProvider>
@@ -97,7 +107,16 @@ function CreateOrderModal({
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        padding: "2rem"
+        padding: {
+            xs: "2rem",
+            md: "2rem"
+        },
+        width: {
+            xs: "80%",
+            md: "40%",
+            lg: "30%",
+            xl: "20%",
+        } 
     }
 
     const FIVE_MINUTES = 1000 * 60 * 5;
@@ -135,7 +154,7 @@ function CreateOrderModal({
             >
                 <Grid container spacing={1}>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <CustomAutocomplete
                             label="User"
                             isLoading={userData.isLoading}
@@ -153,7 +172,7 @@ function CreateOrderModal({
                         />
                     </Grid>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <CustomAutocomplete
                             label="Customer"
                             isLoading={customerData.isLoading}
@@ -171,7 +190,7 @@ function CreateOrderModal({
                         />
                     </Grid>
 
-                    <Grid item sm={12} md={6} lg={6}>
+                    <Grid item xs={12} sm={12} md={6} lg={6}>
                         <OrderType
                             mode="create"
                             getValue={value => {
@@ -229,7 +248,7 @@ function CreateOrder() {
             return callApi2(
                 "Orders",
                 "post",
-                "prod",
+                "dev",
                 orderData
             );
         },
@@ -250,10 +269,9 @@ function CreateOrder() {
         fontSize="small"
     />
     return (
-        <Box>
+        <>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
-                    fullWidth
                     startIcon={addIcon}
                     onClick={handleOpen}
                 >
@@ -265,7 +283,7 @@ function CreateOrder() {
                 setClosed={handleClose}
                 isOpen={open}
             />
-        </Box>
+        </>
     );
 }
 
@@ -279,7 +297,7 @@ function DeleteSelected() {
             return await callApi2<number>(
                 "Orders",
                 "delete",
-                "prod",
+                "dev",
                 selectedOrders
             );
         }
@@ -305,17 +323,16 @@ function DeleteSelected() {
         />;
 
     return (
-        <Box>
+        <>
             <ThemeProvider theme={ButtonTheme}>
                 <Button
-                    fullWidth
                     startIcon={deleteIcon}
                     onClick={handleDelete}
                 >
                     Delete Selected
                 </Button>
             </ThemeProvider>
-        </Box>
+        </>
     );
 }
 
@@ -336,17 +353,19 @@ function OrderType({
         setOrderType(event.target.value);
         getValue(event.target.value as OrderClassification);
 
+        if (mode === "create") return;
         let dispatchValue = event.target.value === "_"? "" : event.target.value;
         let modeValue = event.target.value === "_"? "All-Orders" : "Specific-Type";
         dispatch(prevState => ({
             ...prevState,
+            page: 1,
             mode: modeValue as TableMode,
             OrderTypeSelection: dispatchValue as OrderClassification
         }));
     }
 
     return (
-        <Box>
+        <>
             <FormControl fullWidth>
                 <ThemeProvider theme={OrderDropDownTheme}>
                     <Select
@@ -365,8 +384,53 @@ function OrderType({
                     </Select>
                 </ThemeProvider>
             </FormControl>
-        </Box>
+        </>
     );
+}
+
+function ServerToastMessage() {
+
+    const EIGHT_SECONDS = 8000;
+    const { state, toastOpen, setToastOpen } = useApiResponse();
+    
+    const toastNotification = useMemo(() => {
+        let toastElement = <></>;
+        if (state.isError) {
+            toastElement = <Alert elevation={4} severity="error">{state.message}</Alert>
+        } else {
+            toastElement = <Alert elevation={4} severity="success">{state.message}</Alert>
+        }
+    
+        console.log("Toast fired", toastOpen, state.message);
+        const handleClose = (event: React.SyntheticEvent | Event, reason: string) => {
+            if (reason === "clickaway") {
+                return;
+            }
+            setToastOpen(false);
+        }
+        
+        return <Snackbar 
+                    anchorOrigin={{
+                        vertical: "top",
+                        horizontal: "right"
+                    }}
+                    open={toastOpen}
+                    TransitionComponent={(props) => (
+                        <Slide 
+                            {...props}
+                            direction="down" 
+                        />
+                    )}
+                    onClose={handleClose}
+                    autoHideDuration={2200}
+                >
+                    <Box>
+                        {toastElement}
+                    </Box>
+                </Snackbar>
+}, [state.message, state.isError, toastOpen]);
+
+    return toastNotification;
 }
 
 
@@ -396,38 +460,47 @@ export function SearchFilter() {
                 <Box width={"300px"}>
                     <OrderType getValue={value => {}} mode="filter" />
                 </Box>
+                <ServerToastMessage />
             </Box>
 
             <Box
                 sx={{
-                    maxWidth: "500px",
                     display: {
+                        xs: 'flex',
+                        sm: 'flex',
                         md: "none",
                         lg: "none",
                         xl: "none"
                     }
                 }}
+
+                justifyContent={"center"}
+                alignContent={"center"}
             >
-                <Grid container gap={1} columnGap={8}>
-                    
-                    <Grid item sm={12}>
-                        <CustomerSearch />
+                <Box >
+                    <Grid container gap={1} columnGap={8}>
+                        
+                        <Grid item xs={12} sm={12}>
+                            <CustomerSearch />
+                        </Grid>
+
+
+                        <Grid item xs={12} sm={12}>
+                            <OrderType getValue={value => {}} mode="filter" />
+                        </Grid>
+
+                        <Grid container>
+                            <Grid item xs={6} sm={6}>
+                                <CreateOrder />
+                            </Grid>
+
+                            <Grid item xs={6} sm={6}>
+                                <DeleteSelected />
+                            </Grid>
+                        </Grid>
+
                     </Grid>
-
-
-                    <Grid item sm={12}>
-                        <OrderType getValue={value => {}} mode="filter" />
-                    </Grid>
-
-                    <Grid item sm={5}>
-                        <CreateOrder />
-                    </Grid>
-
-                    <Grid item sm={5}>
-                        <DeleteSelected />
-                    </Grid>
-
-                </Grid>
+                </Box>
             </Box>
         </>
     );

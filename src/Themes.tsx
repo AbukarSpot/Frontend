@@ -35,6 +35,25 @@ export const ButtonTheme = createTheme({
     }
 });
 
+export const PaginationTheme = createTheme({
+    components: {
+        MuiPaginationItem: {
+            styleOverrides: {
+                root: {
+                    backgroundColor: "#007fbf",
+                    height: "100%",
+                    cursor: "pointer",
+                    color: "#fff",
+                    "&:hover": {
+                        backgroundColor: "#0070a8"
+                    }
+                }
+            },
+        }
+    }
+});
+
+
 export const OrderDropDownTheme = createTheme({
     components: {
         MuiSelect: {
