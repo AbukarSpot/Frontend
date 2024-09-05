@@ -16,7 +16,6 @@ function App() {
     <TableContextProvider>
       <ApiResponseContextProvider>
         <QueryClientProvider client={queryClient}>
-          <Navbar />
           <Box
             display={"flex"}
             flexDirection={"column"}

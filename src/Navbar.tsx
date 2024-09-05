@@ -1,8 +1,9 @@
 import { AppBar, AppBarTypeMap, Box, Grid, Paper, SvgIcon, SvgIconProps, ThemeProvider, Typography } from "@mui/material";
 import SettingsIcon from '@mui/icons-material/Settings';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import React from "react";
+import React, { useState } from "react";
 import { IconTheme } from "./Themes";
+import { CustomDrawer } from "./CustomDrawer";
 
 function SpotIcon(props: SvgIconProps) {
     return (
@@ -22,6 +23,7 @@ function SpotIcon(props: SvgIconProps) {
 
 export function Navbar() {
 
+    const [ drawerOpen, setDrawerOpen ] = useState<boolean>(false);
     return (
         <AppBar
             sx={{ 
@@ -68,7 +70,8 @@ export function Navbar() {
                         >
                             <ThemeProvider theme={IconTheme}>
                                 <SettingsIcon />
-                                <AccountCircleIcon />
+                                <AccountCircleIcon onClick={() => setDrawerOpen(true)} />
+                                <CustomDrawer open={drawerOpen} toggleDrawer={setDrawerOpen}/>
                             </ThemeProvider>
                         </Box>
                     </Box>

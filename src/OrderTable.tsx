@@ -179,8 +179,7 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
   const { state, dispatch, setToastOpen }= useApiResponse()
   const { dispatch: tableDispatch } = useTable();
   const [ prevState, setPrevState ] = useState<Order>(row);
-  let value = orderTypeOptions.filter(order => order.key === row["type"])[0];
-  console.log(row["type"], "=>", value);
+  let value = orderTypeOptions.find(order => order.key === row["type"]);
 
   const updateMuatation = useMutation({
     mutationKey: [order],
