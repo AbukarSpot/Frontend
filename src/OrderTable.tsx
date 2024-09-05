@@ -206,7 +206,7 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
         <CustomAutocomplete 
           value={row["by"]} 
           options={users}
-          colKey="Username"
+          colKey="username"
           getValue={setOrder}
           mutationFn={updateMuatation.mutate} 
         />
@@ -222,9 +222,9 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
             "TransferOrder",
             "ReturnOrder"
           ]}
-          colKey="OrderType"
+          colKey="orderType"
           getValue={setOrder}
-          mutationFn={undefined}
+          mutationFn={updateMuatation.mutate}
         />
       </TableCell>
 
@@ -232,7 +232,7 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
         <CustomAutocomplete
           value={row["customer"]} 
           options={customers} 
-          colKey="CustomerName"
+          colKey="customerName"
           getValue={setOrder}
           mutationFn={updateMuatation.mutate} 
         />
