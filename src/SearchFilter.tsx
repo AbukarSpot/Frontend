@@ -23,12 +23,22 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMemo, useState } from "react";
 import { KeyboardArrowDown } from "@mui/icons-material";
-import { OrderClassification, OrderRequest } from "./api/OrderHandler";
+import { Order, OrderClassification, OrderRequest } from "./api/OrderHandler";
 import { CustomAutocomplete } from "./CustomAutocomplete";
 import { Customer, User } from "./api/UserHandler";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
 import { TableMode, useApiResponse, useTable } from "./api/contexts"
+import { useLocalStorage } from "@uidotdev/usehooks";
+
+const draftDateFormatOptions: Intl.DateTimeFormatOptions = {
+    day: "numeric", 
+    month: "numeric", 
+    year: "numeric",
+    hour: "2-digit", 
+    minute: "2-digit",
+    second: "2-digit"
+};
 
 export function CustomerSearch({  }) {
     
@@ -100,6 +110,7 @@ export function CustomerSearch({  }) {
 function CreateOrderModal({
     setClosed = (): void => { },
     handleSubmit = (order: OrderRequest): void => { },
+    createDraft = (order: OrderRequest): void => { },
     isOpen = false
 }) {
     const modalStyle = {
@@ -120,7 +131,6 @@ function CreateOrderModal({
     }
 
     const FIVE_MINUTES = 1000 * 60 * 5;
-    const queryClient = useQueryClient();
 
     const userData = useQuery({
         queryKey: ["my-users"],
@@ -214,13 +224,27 @@ function CreateOrderModal({
                     alignContent={"end"}
                 >
                     <ThemeProvider theme={ButtonTheme}>
-                        <Button
-                            variant="contained"
-                            onClick={() => {
-                                handleSubmit(formData);
-                                setClosed();
-                            }}
-                        >Submit</Button>
+                        <Box
+                            display={"flex"}
+                            gap={2}
+                        >
+                            <Button
+                                variant="contained"
+                                onClick={() => {
+                                    createDraft(formData);
+                                    setClosed();
+                                }}
+                            >Save draft</Button>
+
+                            <Button
+                                variant="contained"
+                                onClick={() => {
+                                    handleSubmit(formData);
+                                    setClosed();
+                                }}
+                            >Submit</Button>
+
+                        </Box>
                     </ThemeProvider>
                 </Box>
 
@@ -264,6 +288,25 @@ function CreateOrder() {
         });
     }
 
+    const [ orderDrafts, saveDraft ] = useLocalStorage("Orders", {})
+    const createDraft = (orderData: OrderRequest) => {
+        const draftIsIncomplete = (
+            orderData.CustomerName.length < 1 ||
+            orderData.Type.length < 1 ||
+            orderData.Username.length < 1
+        );
+
+        if (draftIsIncomplete) {
+            return;
+        }
+
+        let date = new Date().toLocaleDateString("en-us", draftDateFormatOptions);
+        saveDraft(prevState => ({
+            ...prevState,
+            [date]: orderData
+        }));
+    }
+
     let addIcon = <AddIcon
         sx={{ color: "#fff" }}
         fontSize="small"
@@ -281,6 +324,7 @@ function CreateOrder() {
             <CreateOrderModal
                 handleSubmit={submitOrder}
                 setClosed={handleClose}
+                createDraft={createDraft}
                 isOpen={open}
             />
         </>

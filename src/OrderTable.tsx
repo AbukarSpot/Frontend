@@ -1,4 +1,4 @@
-import { Alert, Autocomplete, Box, Button, Checkbox, Divider, Fade, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Checkbox, CircularProgress, Divider, Fade, Grow, Modal, Pagination, PaginationItem, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, Typography } from "@mui/material";
 import { Order, OrderClassification, OrderTypeAutocompleteOptions } from "./api/OrderHandler";
 import { UseMutateFunction, useMutation, useQuery } from "@tanstack/react-query";
 import { callApi2 } from "./api";
@@ -485,12 +485,25 @@ function DatabaseConnectionError({
   connectionFailed = false,
   failureCount = 0, 
   maxFailureCount = 0, 
-  requestDelay = 0, 
   allRetriesExhaused = false,
-  connectionEstablished = false
 }) {
 
   const [ modalOpen, setModalOpen ] = useState<boolean>(true);
+  const [ spinnerVisible, setSpinnerVisible ] = useState<boolean>(true);
+  const modalTimeout = 800;
+  const [ spinnerTimeout, setSpinnerTimeout ] = useState<number>(1200);
+
+
+  const closeSpinner = (node: HTMLElement) => {
+    new Promise((resolve, reject) => {
+      setSpinnerTimeout(200);
+      setTimeout(() => {
+        resolve(setSpinnerVisible(false))
+        console.log("closing spinner")
+      }, spinnerTimeout)
+    })
+  }
+
   return (<>
     <Modal
       open={connectionFailed && modalOpen}
@@ -523,7 +536,7 @@ function DatabaseConnectionError({
                 <Fade
                   key={1}
                   in={true}
-                  timeout={1200}
+                  timeout={modalTimeout}
                 >
                   <Box>
                     <Stack spacing={3}>
@@ -534,8 +547,33 @@ function DatabaseConnectionError({
                         Unable to connect to database.
                       </Alert>
                       <Typography variant="subtitle1" textAlign="center">
-                        Reconnecting, attempt: <span style={{ color: "green" }}>{failureCount}</span> / <span>{maxFailureCount}</span>
+                        Reconnecting, attempt: <span style={{ color: "#D32F2F" }}>{failureCount}</span> / <span>{maxFailureCount}</span>
                       </Typography>
+                      
+                      {
+                        spinnerVisible?
+                          <Grow
+                            in={failureCount < maxFailureCount}
+                            onExiting={closeSpinner}
+                            timeout={spinnerTimeout}
+                          >
+                            <Box
+                              display={"flex"}
+                              justifyContent={"center"}
+                              alignContent={"center"}
+                              paddingBottom={
+                                failureCount < maxFailureCount ?
+                                  "1rem":
+                                  "none"
+                              }
+                            >
+                              <CircularProgress color="error" />
+                            </Box>
+                          </Grow>
+                        :
+                        <></>
+                      }
+
                     </Stack>
                   </Box>
                 </Fade>
@@ -543,7 +581,7 @@ function DatabaseConnectionError({
                 <Fade
                   key={2}
                   in={true}
-                  timeout={1200}
+                  timeout={modalTimeout}
                 >
                   <Box>
                     <Stack spacing={3}>
@@ -705,17 +743,14 @@ export default function OrderTable() {
               />
     }
 
-  // fix this component firing
   const dbErrorComponent = <>
     <DatabaseConnectionError
-        connectionFailed={paginationState.isError || !paginationQuery.isFetched} 
-        connectionEstablished={!paginationQuery.isFetching || !paginationQuery.isLoading}
+        connectionFailed={paginationQuery.failureCount > 0 } 
         failureCount={paginationQuery.failureCount}
-        requestDelay={3000}
         maxFailureCount={MAX_ATTEMPTS}
         allRetriesExhaused={paginationQuery.failureCount === MAX_ATTEMPTS}/>
   </>
-    console.log(`err state: ${paginationQuery.isError}`, 
+    console.log(`err state: err${paginationQuery.isError} lErr: ${paginationQuery.isLoadingError} fErr: ${paginationQuery.isRefetchError} => count: ${paginationQuery.failureCount}`, 
       (paginationQuery.error as AxiosError<number>)?.response?.data,
       paginationQuery?.data?.data,
       paginationQuery.isRefetchError
@@ -740,7 +775,8 @@ export default function OrderTable() {
                 
                 <TableBody>
                   {
-                    paginationQuery.isError?
+                    
+                      paginationQuery.failureCount > 0 ?
                       dbErrorComponent
                       :
                       isLoading? 
