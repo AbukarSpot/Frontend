@@ -1,6 +1,7 @@
 import { stat } from "fs";
 import { createContext, useContext, useState } from "react";
 import { OrderClassification } from "./OrderHandler";
+import { OrderDraft } from "../Drafts";
 
 export type TableMode = "All-Orders" | "Specific-Customer" | "Specific-Type";
 export interface TableState {
@@ -104,6 +105,40 @@ export function useApiResponse() {
     const ctxValue = useContext<ApiResponseContextType>(ApiResponseContext)
     if (!ctxValue) {
         throw new Error("useApiResponse must be called from inside a ApiResponseContextProvider")
+    }
+
+    return ctxValue;
+}
+
+
+// Drafts context
+interface DraftContext {
+    delete: Set<OrderDraft>,
+    create: Set<OrderDraft>,
+}
+
+type DraftContextType = {
+    state: DraftContext,
+    dispatch: React.Dispatch<React.SetStateAction<DraftContext>>,
+};
+
+const initialDraftState: DraftContext = {
+    delete: new Set<OrderDraft>([]),
+    create: new Set<OrderDraft>([])
+}
+
+const DraftContext = createContext<DraftContextType>(null as any);
+export const DraftContextProvider = (props: React.PropsWithChildren<{}>) => {
+    const [state, dispatch] = useState(initialDraftState)
+    return <DraftContext.Provider value={
+        { state, dispatch }
+    }>{props.children}</DraftContext.Provider>
+}
+
+export function useDraft() {
+    const ctxValue = useContext<DraftContextType>(DraftContext)
+    if (!ctxValue) {
+        throw new Error("useDraft must be called from inside a DraftContextProvider")
     }
 
     return ctxValue;

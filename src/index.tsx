@@ -1,22 +1,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import reportWebVitals from './reportWebVitals';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './myRoutes';
 import { Navbar } from './Navbar';
+import {Root} from './Root'
 
-const queryClient = new QueryClient();
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <Navbar />
-      <RouterProvider router={router}/>
-    </QueryClientProvider>
+    <Navbar />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
 

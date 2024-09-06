@@ -1,16 +1,22 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 import { Analytics } from "./Analytics";
+import { Drafts } from "./Drafts";
+import { Root } from "./Root";
 
 
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <App />
+        element: <Root>
+                    <App />
+                </Root>
     },
     {
         path: "/drafts",
-        element: <App />
+        element: <Root>
+                    <Drafts />
+                </Root>
     },
     {
         path: "/analytics",

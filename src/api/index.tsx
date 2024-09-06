@@ -55,7 +55,7 @@ export async function callApi2<T = any>(
         }
         else if (method === 'post') {
             response = await axios.post<T>(`${base_url}${route}`, {                
-                ...data
+                ...data,
             });
         }
         else if (method === 'delete') {

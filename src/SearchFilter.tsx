@@ -26,7 +26,7 @@ import { KeyboardArrowDown } from "@mui/icons-material";
 import { Order, OrderClassification, OrderRequest } from "./api/OrderHandler";
 import { CustomAutocomplete } from "./CustomAutocomplete";
 import { Customer, User } from "./api/UserHandler";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { callApi, callApi2 } from "./api";
 import { TableMode, useApiResponse, useTable } from "./api/contexts"
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -303,8 +303,13 @@ function CreateOrder() {
         let date = new Date().toLocaleDateString("en-us", draftDateFormatOptions);
         saveDraft(prevState => ({
             ...prevState,
-            [date]: orderData
+            [date]: {
+                ...orderData,
+                date: date
+            }
         }));
+
+        console.log("drafts: ", orderDrafts);
     }
 
     let addIcon = <AddIcon

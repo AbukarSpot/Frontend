@@ -745,16 +745,14 @@ export default function OrderTable() {
 
   const dbErrorComponent = <>
     <DatabaseConnectionError
-        connectionFailed={paginationQuery.failureCount > 0 } 
+        connectionFailed={
+          paginationQuery.failureCount > 0 && 
+          !paginationQuery.isSuccess
+        } 
         failureCount={paginationQuery.failureCount}
         maxFailureCount={MAX_ATTEMPTS}
         allRetriesExhaused={paginationQuery.failureCount === MAX_ATTEMPTS}/>
   </>
-    console.log(`err state: err${paginationQuery.isError} lErr: ${paginationQuery.isLoadingError} fErr: ${paginationQuery.isRefetchError} => count: ${paginationQuery.failureCount}`, 
-      (paginationQuery.error as AxiosError<number>)?.response?.data,
-      paginationQuery?.data?.data,
-      paginationQuery.isRefetchError
-    );
     return (
       <>
         <TableContainer style={{
@@ -793,7 +791,6 @@ export default function OrderTable() {
           alignContent={"center"}
           paddingTop={"1rem"}
         >
-          {/* <ThemeProvider theme={PaginationTheme}> */}
             <Pagination 
               count={paginationQuery?.data?.data}
               color="primary"
@@ -807,7 +804,6 @@ export default function OrderTable() {
                 page: pageNumber
               }))} 
             />
-          {/* </ThemeProvider> */}
         </Box>
       </>
     );
