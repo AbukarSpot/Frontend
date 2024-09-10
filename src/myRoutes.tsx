@@ -20,6 +20,8 @@ export const router = createBrowserRouter([
     },
     {
         path: "/analytics",
-        element: <Analytics />
+        element: <Root>
+                    <Analytics />
+                </Root>
     },
 ])
