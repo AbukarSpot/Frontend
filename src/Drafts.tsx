@@ -2,7 +2,7 @@ import { Box, Pagination, PaginationItem, Table, TableBody, TableCell, Checkbox,
 import { useLocalStorage } from "@uidotdev/usehooks";
 import { useState } from "react";
 import { DraftSearchFilters } from "./DraftSearchFilters";
-import { DraftContextProvider, useDraft } from './api/contexts';
+import { useDraft } from './api/contexts';
 
 export interface OrderDraft {
     date: string,
@@ -60,6 +60,7 @@ function DraftEntry(props: OrderDraft) {
 export function Drafts() {
 
     const [ page, setPage ] = useState<number>(1);
+    const { state } = useDraft();
     const [ drafts, setDrafts ] = useLocalStorage<Record<string, OrderDraft>>("Orders");
     const entriesPerPg = 5;
     const orders = Object.entries(drafts);
@@ -75,56 +76,52 @@ export function Drafts() {
                     )
                     .slice((page - 1), (page - 1) + entriesPerPg + 1);
     return (<>
-    <>
-        <DraftContextProvider>
-                <DraftSearchFilters />
-                <TableContainer style={{
-                height: "550px", 
-                width: '100%'
-                }}>
-                    <Table key={orders.length}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell align="center">
-                                    <Checkbox />
-                                </TableCell>
-                                {cellMap.map((cell) => (
-                                    <TableCell className="cell" key={cell.label} align="center">{cell.label}</TableCell>
-                                ))}
-                            </TableRow>
-                        </TableHead>
-                        
-                        <TableBody>
-                        {
-                            
-                            pages < 1?
-                                <TableCell>No drafts present</TableCell>
-                            :
-                                data
+        <DraftSearchFilters />
+        <TableContainer style={{
+        height: "550px", 
+        width: '100%'
+        }}>
+            <Table key={orders.length}>
+                <TableHead>
+                    <TableRow>
+                        <TableCell align="center">
+                            <Checkbox />
+                        </TableCell>
+                        {cellMap.map((cell, index) => (
+                            <TableCell className="cell" key={index} align="center">{cell.label}</TableCell>
+                        ))}
+                    </TableRow>
+                </TableHead>
+                
+                <TableBody>
+                {
+                    
+                    pages < 1?
+                        <TableCell>No drafts present</TableCell>
+                    :
+                        data
+                }
+                </TableBody>
+            </Table>
+        </TableContainer>
+        <Box
+        display={"flex"}
+        justifyContent={"center"}
+        alignContent={"center"}
+        paddingTop={"1rem"}
+        >
+            <Pagination 
+            count={pages}
+            color="primary"
+            renderItem={item => <PaginationItem 
+                                    {...item} 
+                                    selected={item.page === page} 
+                                    />
                         }
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                <Box
-                display={"flex"}
-                justifyContent={"center"}
-                alignContent={"center"}
-                paddingTop={"1rem"}
-                >
-                    <Pagination 
-                    count={pages}
-                    color="primary"
-                    renderItem={item => <PaginationItem 
-                                            {...item} 
-                                            selected={item.page === page} 
-                                            />
-                                }
-                    onChange={(event, pageNumber) => {
-                        setPage(pageNumber);
-                    }} 
-                    />
-                </Box>
-        </DraftContextProvider>
-      </>
+            onChange={(event, pageNumber) => {
+                setPage(pageNumber);
+            }} 
+            />
+        </Box>
     </>)
 }

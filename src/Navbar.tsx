@@ -7,7 +7,9 @@ import { CustomDrawer } from "./CustomDrawer";
 
 function SpotIcon(props: SvgIconProps) {
     return (
-        <SvgIcon {...props}>
+        <SvgIcon 
+            {...props}
+        >
             <svg width="100%" height="100%" viewBox="0 0 260 239" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
                 <rect width="260" height="239" fill="url(#pattern0)"/>
                 <defs>
@@ -49,6 +51,10 @@ export function Navbar() {
                             alignContent={"center"}
                             justifyContent={"center"}
                             gap={"1rem"}
+                            sx={{
+                                cursor: "pointer"
+                            }}
+                            onClick={() => window.location.assign("/")}
                         >
                             <SpotIcon fontSize="medium"/>
                             <Typography color={"black"} height={"min-content"}>Home</Typography>

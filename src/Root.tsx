@@ -6,6 +6,7 @@ import {
     QueryClient as QueryClient2, 
     QueryClientProvider as QueryClientProvider2
 } from "react-query"
+import { DraftContextProvider } from "./api/contexts";
 
 interface RootProps {
     children: React.ReactNode
@@ -16,14 +17,16 @@ const client2 = new QueryClient2();
 export function Root({ children }: RootProps) {
 
     return <>
-        <TableContextProvider>
-            <ApiResponseContextProvider>
-                <QueryClientProvider client={client}>
-                    <QueryClientProvider2 client={client2}>
-                        {children}
-                    </QueryClientProvider2>
-                </QueryClientProvider>
-            </ApiResponseContextProvider>
-        </TableContextProvider>
+        <DraftContextProvider>
+            <TableContextProvider>
+                <ApiResponseContextProvider>
+                    <QueryClientProvider client={client}>
+                        <QueryClientProvider2 client={client2}>
+                            {children}
+                        </QueryClientProvider2>
+                    </QueryClientProvider>
+                </ApiResponseContextProvider>
+            </TableContextProvider>
+        </DraftContextProvider>
     </>
 }
