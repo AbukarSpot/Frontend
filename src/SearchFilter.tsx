@@ -272,7 +272,7 @@ function CreateOrder() {
             return callApi2(
                 "Orders",
                 "post",
-                "dev",
+                "prod",
                 orderData
             );
         },
@@ -346,7 +346,7 @@ function DeleteSelected() {
             return await callApi2<number>(
                 "Orders",
                 "delete",
-                "dev",
+                "prod",
                 selectedOrders
             );
         }

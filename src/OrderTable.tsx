@@ -5,7 +5,7 @@ import { callApi2 } from "./api";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
 import { AxiosError, AxiosResponse } from "axios";
-import { useApiResponse, useTable } from "./api/contexts";
+import { useApiResponse, useDraft, useTable } from "./api/contexts";
 import { isError, useQuery  as useQuery2 } from "react-query";
 import { All, Customer as CustomerType, CustomerAndType, PaginationCriteria, Type } from "./pagination";
 import { User, Customer } from "./api/UserHandler";
@@ -197,7 +197,7 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
       return callApi2<void>(
         `Orders?orderId=${order.id}&createdDate=${order.date}&username=${request.username}&orderType=${request.orderType}&customerName=${request.customerName}`,
         "patch",
-        "dev",
+        "prod",
         request
       )
     },
@@ -283,14 +283,15 @@ function CustomTableRow({ row, rowId, selectOrder, users, customers }: CustomTab
 function SpecificTypeAndCustomerResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
+  const { state: draftState } = useDraft();
   const { data } = useQuery({
-    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`],  
+    queryKey: [`get-specific-customer-type-${state.OrderTypeSelection}-${state.CustomerSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`,draftState],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
               `filter/type/customer/${state.OrderTypeSelection}/${state.CustomerSelection}/${page}`, 
               "get", 
-              "dev", 
+              "prod", 
               {
                   pageNumber: page,
                   customer: state.CustomerSelection,
@@ -322,14 +323,15 @@ function SpecificTypeAndCustomerResults({ page = 0, setIsLoading, users, custome
 function SpecificTypeResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
   
   const { state, selectOrder } = useTable();
+  const { state: draftState } = useDraft();
   const { data } = useQuery({
-    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`],  
+    queryKey: [`get-specific-type-${state.OrderTypeSelection}-orders-${page}-${state.createCount}-${state.deleteCount}-${state.updateCount}`,draftState],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
               `filter/type/${state.OrderTypeSelection}/${page}`, 
               "get", 
-              "dev", 
+              "prod", 
               {
                   pageNumber: page,
                   type: state.OrderTypeSelection 
@@ -366,11 +368,12 @@ function CustomerSearchResults({ page = 0, setIsLoading, users, customers }: Ord
   
   const { state, selectOrder } = useTable();
   const { dispatch, setToastOpen } = useApiResponse();
-  const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection, state.updateCount],{  
+  const { state: draftState } = useDraft();
+  const { data } = useQuery2([page, state.createCount, state.deleteCount,state.CustomerSelection, state.updateCount,draftState],{  
     queryFn: async () => callApi2<Order[]>(
       `filter/customer/${state.CustomerSelection}/${page}`, 
       "get", 
-      "dev", 
+      "prod", 
       {
           pageNumber: page,
           customer: state.CustomerSelection 
@@ -421,14 +424,15 @@ function CustomerSearchResults({ page = 0, setIsLoading, users, customers }: Ord
 function AllOrderResults({ page = 0, setIsLoading, users, customers }: OrderTableRowProps) {
 
   const { state, selectOrder } = useTable()
+  const { state: draftState } = useDraft();
   const { data } = useQuery({
-    queryKey: [`get-all-orders-${page}-${state.createCount}-${state.deleteCount}`, state.createCount, state.updateCount],  
+    queryKey: [`get-all-orders-${page}-${state.createCount}-${state.deleteCount}`, state.createCount, state.updateCount, draftState.create.size, draftState.delete.size, draftState],  
     queryFn: async () => {
           setIsLoading(true);
           const data = await callApi2<Order[]>(
               `Orders/${page}`, 
               "get", 
-              "dev", 
+              "prod", 
               {
                   pageNumber: page
               }
@@ -462,13 +466,13 @@ function TableLoading() {
     {
       ids.map(rowId => (<>
           <TableRow key={rowId}>  
-            <TableCell>
+            <TableCell align="center">
               <Checkbox />
             </TableCell>
 
             {
               ids.map(colId => (<>
-                <TableCell key={(10 * rowId) + colId}>
+                <TableCell key={(10 * rowId) + colId} align="center">
                   <Box width={"100%"} height={"100%"}>
                     <Skeleton variant="rounded" />
                   </Box>
@@ -644,7 +648,7 @@ export default function OrderTable() {
           return await callApi2<number>(
             `Orders/count?criteria=${criteria}&customerName=${state.CustomerSelection}&type=${state.OrderTypeSelection}`,
             "get",
-            "dev",
+            "prod",
             {
               criteria: criteria,
               customerName: state.CustomerSelection,
@@ -666,7 +670,7 @@ export default function OrderTable() {
           const users = await callApi2<User[]>(
             "User",
             "get",
-            "dev" 
+            "prod" 
           );
 
           return users?.data?.map(user => user.username);
@@ -685,7 +689,7 @@ export default function OrderTable() {
           const customers = await callApi2<Customer[]>(
             "Customer",
             "get",
-            "dev" 
+            "prod" 
           );
           return customers?.data?.map(customer => customer.name);
         },

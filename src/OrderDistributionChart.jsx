@@ -18,6 +18,8 @@ import {
 import { Box, Paper } from "@mui/material"
 import { useState } from "react"
 import { DatePickerWithRange } from "./DateRange"
+import { useQuery } from "react-query"
+import { callApi2 } from "./api"
 
 
 export const description = "A pie chart with a label"
@@ -29,29 +31,33 @@ const chartData = [
   { browser: "other", visitors: 90, fill: "var(--color-other)" },
 ]
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  type: {
+    label: "type",
   },
-  chrome: {
-    label: "Chrome",
-    color: "hsl(var(--chart-1))",
+  Standard: {
+    label: "Standard",
+    color: "rgb(46,184,138)",
   },
-  safari: {
-    label: "Safari",
+  ReturnOrder: {
+    label: "Return Order",
     color: "hsl(var(--chart-2))",
   },
-  firefox: {
-    label: "Firefox",
+  TransferOrder: {
+    label: "Transfer Order",
     color: "hsl(var(--chart-3))",
   },
-  edge: {
-    label: "Edge",
+  PurchaseOrder: {
+    label: "Purchase Order",
     color: "hsl(var(--chart-4))",
   },
-  other: {
-    label: "Other",
+  ReturnOrder: {
+    label: "Return Order",
     color: "hsl(var(--chart-5))",
   },
+  SaleOrder: {
+    label: "Sale Order",
+    color: "hsl(var(--chart-5))",
+  }
 }
 
 export function OrderDistributionChart() {
@@ -76,6 +82,38 @@ export function OrderDistributionChart() {
   const getDate = data => {
     setDate(data);
   }
+
+  const distributionQuery = useQuery([date?.from, date?.to], {
+    queryFn: async () => {
+      const dateFormat = {
+        month: "numeric", 
+        day: "numeric", 
+        year: "numeric" 
+      }
+
+      const startDate = new Date(date?.from)
+                      ?.toLocaleDateString('en-US', dateFormat);
+    
+      const endDate = new Date(date?.to)
+                        ?.toLocaleDateString('en-US', dateFormat);
+      
+      const invalidDateProvided = startDate === "Invalid Date" ||
+                                  endDate === "Invalid Date"
+      if (invalidDateProvided) {
+        throw new Error("You provided an invalid date.");
+      }
+
+      return callApi2(
+        "Orders/analytics/distribution",
+        "post",
+        "prod",
+        {
+          startDate: startDate,
+          stopDate: endDate
+        }
+      );
+    }
+  })
 
   return (
     <Paper
@@ -110,7 +148,7 @@ export function OrderDistributionChart() {
             >
             <PieChart>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Pie data={chartData} dataKey="visitors" label nameKey="browser" />
+                <Pie data={distributionQuery?.data?.data} dataKey="orderCount" label nameKey="type" />
             </PieChart>
             <ChartLegend content={<ChartLegendContent />} />
             </ChartContainer>
@@ -120,7 +158,7 @@ export function OrderDistributionChart() {
             Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
             </div>
             <div className="leading-none text-muted-foreground">
-            Showing total visitors for the last 6 months
+              {`Showing Order distribution for ${formatDate(date)}`}
             </div>
         </CardFooter>
         </Card>

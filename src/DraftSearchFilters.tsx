@@ -20,7 +20,7 @@ export function DraftSearchFilters() {
             return callApi2<boolean>(
                 "Orders/bulk",
                 "post",
-                "dev",
+                "prod",
                 {
                     Orders: orders
                 }
@@ -30,12 +30,14 @@ export function DraftSearchFilters() {
     
     const deleteDrafts = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         
-        console.log("delete set b4 =>", state.delete.size)
         state.delete.forEach(orderDraft => {
             delete orderDrafts[orderDraft.date];
         })
-        console.log("delete set after =>", state.delete.size)
         setOrderDrafts(orderDrafts);
+        dispatch(prevState => ({
+            ...prevState,
+            delete: new Set<OrderDraft>()
+        }));
     } 
 
     const createDrafts = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
@@ -72,6 +74,10 @@ export function DraftSearchFilters() {
                                         delete orderDrafts[orderDraft.date];
                                     });
                                     setOrderDrafts(orderDrafts);
+                                    dispatch(prevState => ({
+                                        ...prevState,
+                                        create: new Set<OrderDraft>()
+                                    }));
                                     prevState.create.clear();
                                     setToastOpen(true);
                                     return { ...prevState }

@@ -186,7 +186,7 @@ export function OrderFrequencyChart() {
         return callApi2(
           "Orders/analytics/frequency",
           "post",
-          "dev",
+          "prod",
           {
             startDate: startDate,
             stopDate: endDate
